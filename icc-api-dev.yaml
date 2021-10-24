@@ -15,10 +15,9 @@ services:
       repo: OutBoulderCounty/icc-api
     http_port: 8080
     instance_count: 1
-    instance_size_slug: basic-xxs
+    instance_size_slug: professional-xs
     name: icc-api-dev
     routes:
       - path: /
-    build_command: go build -o bin/api
     run_command: bin/api
     source_dir: /
