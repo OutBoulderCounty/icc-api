@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"fmt"
 	"strings"
 
 	"github.com/lestrrat-go/jwx/jwk"
@@ -27,6 +26,25 @@ func Authorize(ctx context.Context, token []byte, roles []string) (bool, error) 
 	}
 	// Get the claims
 	claims := parsedToken.PrivateClaims()
-	fmt.Println(claims)
-	return true, nil
+	// Get the roles
+	var roleInterfaces []interface{}
+	for k, v := range claims {
+		if k == "roles" {
+			roleInterfaces = v.([]interface{})
+		}
+	}
+	var userRoles []string
+	for i := 0; i < len(roleInterfaces); i++ {
+		userRoles = append(userRoles, roleInterfaces[i].(string))
+	}
+
+	// check if the user has the right roles
+	for i := 0; i < len(roles); i++ {
+		for j := 0; j < len(userRoles); j++ {
+			if roles[i] == userRoles[j] {
+				return true, nil
+			}
+		}
+	}
+	return false, nil
 }
