@@ -39,42 +39,56 @@ func (db DB) Execute(query string) (sql.Result, error) {
 }
 
 func Connect(env string) (*DB, error) {
-	// get connection data from SSM
-	sess := session.Must(session.NewSession())
-	svc := ssm.New(sess, aws.NewConfig().WithRegion("us-west-2"))
 	fmt.Println("app env:", env)
-	path := fmt.Sprintf("/icc/%s/database/", env)
-	decrypt := true
-	input := ssm.GetParametersByPathInput{
-		Path:           &path,
-		WithDecryption: &decrypt,
-	}
-	out, err := svc.GetParametersByPath(&input)
-	if err != nil {
-		return nil, err
-	}
-	params := out.Parameters
-	var c SqlConnection
-	for i := 0; i < len(params); i++ {
-		name := *params[i].Name
-		value := *params[i].Value
-		switch {
-		case strings.HasSuffix(name, "host"):
-			c.Host = value
-		case strings.HasSuffix(name, "port"):
-			c.Port = value
-		case strings.HasSuffix(name, "user"):
-			c.User = value
-		case strings.HasSuffix(name, "password"):
-			c.Password = value
-		case strings.HasSuffix(name, "name"):
-			c.Name = value
-		}
-	}
 
-	db, err := sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?tls=true", c.User, c.Password, c.Host, c.Port, c.Name))
-	if err != nil {
-		return nil, err
+	var db *sql.DB
+	var err error
+	if env == "prod" {
+		fmt.Println("Connecting to prod database")
+
+		// get connection data from SSM
+		sess := session.Must(session.NewSession())
+		svc := ssm.New(sess, aws.NewConfig().WithRegion("us-west-2"))
+		path := fmt.Sprintf("/icc/%s/database/", env)
+		decrypt := true
+		input := ssm.GetParametersByPathInput{
+			Path:           &path,
+			WithDecryption: &decrypt,
+		}
+		out, err := svc.GetParametersByPath(&input)
+		if err != nil {
+			return nil, err
+		}
+		params := out.Parameters
+		var c SqlConnection
+		for i := 0; i < len(params); i++ {
+			name := *params[i].Name
+			value := *params[i].Value
+			switch {
+			case strings.HasSuffix(name, "host"):
+				c.Host = value
+			case strings.HasSuffix(name, "port"):
+				c.Port = value
+			case strings.HasSuffix(name, "user"):
+				c.User = value
+			case strings.HasSuffix(name, "password"):
+				c.Password = value
+			case strings.HasSuffix(name, "name"):
+				c.Name = value
+			}
+		}
+
+		db, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?tls=true", c.User, c.Password, c.Host, c.Port, c.Name))
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		fmt.Println("Connecting to dev database")
+		db, err = sql.Open("mysql", "tcp(localhost:3306)/")
+		if err != nil {
+			return nil, err
+		}
+
 	}
 	err = db.Ping()
 	if err != nil {
