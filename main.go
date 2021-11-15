@@ -4,17 +4,23 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"api/database"
 	"api/forms"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"github.com/stytchauth/stytch-go/v3/stytch"
 	"github.com/stytchauth/stytch-go/v3/stytch/stytchapi"
 )
 
 func main() {
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
 	r := gin.Default()
 	config := cors.DefaultConfig()
 	config.AllowOrigins = []string{"http://localhost:8000", "https://*.inclusivecareco.org, http://localhost:3000"}
@@ -27,8 +33,7 @@ func main() {
 	}
 	defer db.Close()
 
-	// TODO: put secrets in env
-	stytchClient := stytchapi.NewAPIClient(stytch.EnvTest, "project-test-c1af026b-43ef-4aee-830c-ace28e8822ac", "secret-test-ChVyWBGfThTd7Q59zqfuBuM7QuDGgdFakLg=")
+	stytchClient := stytchapi.NewAPIClient(stytch.EnvTest, os.Getenv("STYTCH_PROJECT_ID"), os.Getenv("STYTCH_SECRET"))
 
 	r.GET("/", func(c *gin.Context) {
 		c.String(http.StatusOK, "Hello World!")

@@ -39,7 +39,6 @@ func (db DB) Execute(query string) (sql.Result, error) {
 }
 
 func Connect(env string) (*DB, error) {
-	// get connection data from SSM
 	fmt.Println("app env:", env)
 
 	var db *sql.DB
@@ -47,6 +46,7 @@ func Connect(env string) (*DB, error) {
 	if env == "prod" {
 		fmt.Println("Connecting to prod database")
 
+		// get connection data from SSM
 		sess := session.Must(session.NewSession())
 		svc := ssm.New(sess, aws.NewConfig().WithRegion("us-west-2"))
 		path := fmt.Sprintf("/icc/%s/database/", env)

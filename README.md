@@ -10,6 +10,13 @@
   pscale login
   ```
 
+- Set up Stytch environment variables in .env file at the root of this repository
+
+  ```env
+  STYTCH_PROJECT_ID="<project id>"
+  STYTCH_SECRET="<secret>"
+  ```
+
 - Clone this repo
 
 ## How to run

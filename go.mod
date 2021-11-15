@@ -8,6 +8,8 @@ require (
 	github.com/go-sql-driver/mysql v1.6.0
 )
 
+require github.com/joho/godotenv v1.4.0 // indirect
+
 require (
 	github.com/gin-contrib/cors v1.3.1
 	github.com/gin-contrib/sse v0.1.0 // indirect
