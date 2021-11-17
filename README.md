@@ -42,13 +42,15 @@
 
 I use [httpie](https://httpie.io/cli) to make requests in the examples below, but these could be translated to curl or any other tool.
 
-1. To get a session token, make a POST request to the `/login` endpoint with your email address in the body
+1. To get a session token, make a POST request to the `/login` endpoint with your email address and the appropriate redirect URL in the body. Make sure the component at this URL makes a GET request to the /authenticate API endpoint with the token provided in the query parameters. The data you get back from this request will contain a session token.
 
    ```sh
-   http POST http://localhost:8080/login email=<email>
+   http POST http://localhost:8080/login email=<email> redirect_url=<redirect url>
    ```
 
-   You will receive an email to the address you provided. Click the link in the email to get a session token. Copy the session token value from the JSON response.
+   You will receive an email to the email address you provided. Clicking on this link will redirect you to the URL you provided.
+
+   To test locally with only the API running, you can pass http://localhost:8080/localauth as the redirect URL and get a session token that way.
 
 1. With a session token in hand, you can now make authenticated requests
 
