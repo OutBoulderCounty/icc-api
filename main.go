@@ -8,6 +8,7 @@ import (
 
 	"api/database"
 	"api/forms"
+	"api/users"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -40,48 +41,19 @@ func main() {
 	})
 
 	r.POST("/login", func(c *gin.Context) {
-		var json struct {
-			Email string `json:"email"`
-		}
-		err := c.BindJSON(&json)
-		if err != nil {
-			fmt.Println("Failed to bind JSON: " + err.Error())
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": err.Error(),
-			})
-			return
-		}
-		body := stytch.MagicLinksEmailLoginOrCreateParams{
-			Email:              json.Email,
-			LoginMagicLinkURL:  "http://localhost:8080/authenticate",
-			SignupMagicLinkURL: "http://localhost:8080/authenticate",
-		}
-		resp, err := stytchClient.MagicLinks.Email.LoginOrCreate(&body)
-		if err != nil {
-			fmt.Println("Failed to create magic link: " + err.Error())
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": err.Error(),
-			})
-			return
-		}
-		var status int
-		if resp.UserCreated {
-			// TODO: create user in DB
-			fmt.Println("User created")
-			status = http.StatusCreated
-		} else {
-			status = http.StatusOK
-		}
-		c.JSON(status, gin.H{
-			"user_id": resp.UserID,
-		})
+		users.Login(c, stytchClient)
 	})
 
 	r.GET("/authenticate", func(c *gin.Context) {
-		var user struct {
+		users.Authenticate(c, stytchClient)
+	})
+
+	// this is for testing locally without a UI
+	r.GET("/localauth", func(c *gin.Context) {
+		var login struct {
 			Token string `form:"token"`
 		}
-		err := c.ShouldBindQuery(&user)
+		err := c.ShouldBindQuery(&login)
 		if err != nil {
 			fmt.Println("Failed to bind query: " + err.Error())
 			c.JSON(http.StatusInternalServerError, gin.H{
@@ -89,11 +61,10 @@ func main() {
 			})
 			return
 		}
-		body := stytch.MagicLinksAuthenticateParams{
-			Token:                  user.Token,
+		resp, err := stytchClient.MagicLinks.Authenticate(&stytch.MagicLinksAuthenticateParams{
+			Token:                  login.Token,
 			SessionDurationMinutes: 10080,
-		}
-		resp, err := stytchClient.MagicLinks.Authenticate(&body)
+		})
 		if err != nil {
 			fmt.Println("Failed to authenticate: " + err.Error())
 			c.JSON(http.StatusUnauthorized, gin.H{
@@ -101,9 +72,8 @@ func main() {
 			})
 			return
 		}
-		fmt.Println("Authenticated!", resp.UserID, resp.SessionToken)
+		fmt.Println("Authenticated!", resp.Session.UserID, resp.SessionToken)
 		c.JSON(http.StatusOK, gin.H{
-			"user_id":       resp.UserID,
 			"session_token": resp.SessionToken,
 		})
 	})
