@@ -42,7 +42,7 @@
 
 I use [httpie](https://httpie.io/cli) to make requests in the examples below, but these could be translated to curl or any other tool.
 
-1. To get a session token, make a POST request to the `/login` endpoint with your email address and the appropriate redirect URL in the body. Make sure the component at this URL makes a GET request to the /authenticate API endpoint with the token provided in the query parameters. The data you get back from this request will contain a session token.
+1. To get a session token, make a POST request to the `/login` endpoint with your email address and the appropriate redirect URL in the body. Make sure the component at this URL makes a POST request to the /authenticate API endpoint with a body containing the token provided in the query parameters. The data you get back from this request will contain a session token. You can find an example implementation in the icc-admin-ui repo.
 
    ```sh
    http POST http://localhost:8080/login email=<email> redirect_url=<redirect url>

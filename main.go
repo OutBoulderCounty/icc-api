@@ -24,7 +24,8 @@ func main() {
 	}
 	r := gin.Default()
 	config := cors.DefaultConfig()
-	config.AllowOrigins = []string{"http://localhost:8000", "https://*.inclusivecareco.org, http://localhost:3000"}
+	config.AllowWildcard = true
+	config.AllowOrigins = []string{"http://localhost:8000", "https://*.inclusivecareco.org", "http://localhost:3000", "http://localhost:3002"}
 	config.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization"}
 	r.Use(cors.New(config))
 
@@ -44,7 +45,7 @@ func main() {
 		users.Login(c, stytchClient)
 	})
 
-	r.GET("/authenticate", func(c *gin.Context) {
+	r.POST("/authenticate", func(c *gin.Context) {
 		users.Authenticate(c, stytchClient)
 	})
 
