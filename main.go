@@ -42,7 +42,7 @@ func main() {
 	})
 
 	r.POST("/login", func(c *gin.Context) {
-		users.Login(c, stytchClient)
+		users.Login(c, stytchClient, db)
 	})
 
 	r.POST("/authenticate", func(c *gin.Context) {
@@ -73,7 +73,7 @@ func main() {
 			})
 			return
 		}
-		fmt.Println("Authenticated!", resp.Session.UserID, resp.SessionToken)
+		fmt.Println("Authenticated!", resp.Session.UserID)
 		c.JSON(http.StatusOK, gin.H{
 			"session_token": resp.SessionToken,
 		})

@@ -1,6 +1,7 @@
 package users
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -23,6 +24,7 @@ func Authenticate(c *gin.Context, stytchClient *stytchapi.API) bool {
 		SessionDurationMinutes: 10080,
 	})
 	if err != nil {
+		fmt.Println("Failed to authenticate:", err)
 		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
 		return false
 	}
