@@ -17,7 +17,7 @@ import (
 	"github.com/stytchauth/stytch-go/v3/stytch/stytchapi"
 )
 
-func main() {
+func setup() (*gin.Engine, *database.DB) {
 	err := godotenv.Load()
 	if err != nil {
 		log.Fatal("Error loading .env file")
@@ -29,12 +29,13 @@ func main() {
 	config.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization"}
 	r.Use(cors.New(config))
 
+	// TODO: switch to prod when ready
 	db, err := database.Connect("dev")
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer db.Close()
 
+	// TODO: switch to stytch.EnvLive when ready
 	stytchClient := stytchapi.NewAPIClient(stytch.EnvTest, os.Getenv("STYTCH_PROJECT_ID"), os.Getenv("STYTCH_SECRET"))
 
 	r.GET("/", func(c *gin.Context) {
@@ -46,10 +47,10 @@ func main() {
 	})
 
 	r.POST("/authenticate", func(c *gin.Context) {
-		users.Authenticate(c, stytchClient)
+		users.AuthenticateUser(c, stytchClient)
 	})
 
-	// this is for testing locally without a UI
+	// for testing locally without a UI
 	r.GET("/localauth", func(c *gin.Context) {
 		var login struct {
 			Token string `form:"token"`
@@ -62,10 +63,7 @@ func main() {
 			})
 			return
 		}
-		resp, err := stytchClient.MagicLinks.Authenticate(&stytch.MagicLinksAuthenticateParams{
-			Token:                  login.Token,
-			SessionDurationMinutes: 10080,
-		})
+		sessionToken, err := users.Authenticate(login.Token, stytchClient)
 		if err != nil {
 			fmt.Println("Failed to authenticate: " + err.Error())
 			c.JSON(http.StatusUnauthorized, gin.H{
@@ -73,13 +71,13 @@ func main() {
 			})
 			return
 		}
-		fmt.Println("Authenticated!", resp.Session.UserID)
+		fmt.Println("Authenticated!")
 		c.JSON(http.StatusOK, gin.H{
-			"session_token": resp.SessionToken,
+			"session_token": sessionToken,
 		})
 	})
 
-	authorized := r.Group("/forms", authRequired(stytchClient))
+	authorized := r.Group("/forms", authRequired(stytchClient, db))
 
 	authorized.GET("", func(c *gin.Context) {
 		foundForms, err := forms.GetForms(db.DB)
@@ -91,10 +89,16 @@ func main() {
 		})
 	})
 
+	return r, db
+}
+
+func main() {
+	r, db := setup()
+	defer db.Close()
 	r.Run()
 }
 
-func authRequired(stytchClient *stytchapi.API) gin.HandlerFunc {
+func authRequired(stytchClient *stytchapi.API, db *database.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := c.Request.Header.Get("Authorization")
 		if token == "" {
@@ -118,6 +122,7 @@ func authRequired(stytchClient *stytchapi.API) gin.HandlerFunc {
 			return
 		}
 		fmt.Println("Authorized!", resp.Session.UserID)
+		c.Set("stytch_user_id", resp.Session.UserID)
 		c.Next()
 	}
 }

@@ -12,7 +12,7 @@ import (
 	"github.com/stytchauth/stytch-go/v3/stytch/stytchapi"
 )
 
-type User struct {
+type UserReq struct {
 	Email       string   `json:"email"`
 	RedirectURL string   `json:"redirect_url"` // must be defined in Stytch as a redirect URL
 	Roles       []string `json:"roles"`
@@ -31,15 +31,15 @@ type UserRole struct {
 	Active bool  `json:"active"`
 }
 
-func Login(c *gin.Context, stytchClient *stytchapi.API, db *database.DB) (*User, error) {
-	var user User
+func Login(c *gin.Context, stytchClient *stytchapi.API, db *database.DB) error {
+	var user UserReq
 	err := c.BindJSON(&user)
 	if err != nil {
 		fmt.Println("Failed to bind JSON: " + err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
-		return nil, err
+		return err
 	}
 
 	body := stytch.MagicLinksEmailLoginOrCreateParams{
@@ -53,7 +53,7 @@ func Login(c *gin.Context, stytchClient *stytchapi.API, db *database.DB) (*User,
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
-		return nil, err
+		return err
 	}
 
 	row := db.QueryRow("SELECT id FROM users WHERE email = ? AND stytchUserID = ?", user.Email, resp.UserID)
@@ -67,7 +67,7 @@ func Login(c *gin.Context, stytchClient *stytchapi.API, db *database.DB) (*User,
 				c.JSON(http.StatusInternalServerError, gin.H{
 					"error": err.Error(),
 				})
-				return nil, err
+				return err
 			}
 			userID, err = result.LastInsertId()
 			if err != nil {
@@ -75,14 +75,14 @@ func Login(c *gin.Context, stytchClient *stytchapi.API, db *database.DB) (*User,
 				c.JSON(http.StatusInternalServerError, gin.H{
 					"error": err.Error(),
 				})
-				return nil, err
+				return err
 			}
 		} else {
 			fmt.Println("Failed to query user: " + err.Error())
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error": err.Error(),
 			})
-			return nil, err
+			return err
 		}
 	}
 
@@ -92,7 +92,7 @@ func Login(c *gin.Context, stytchClient *stytchapi.API, db *database.DB) (*User,
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
-		return nil, err
+		return err
 	}
 	for i := 0; i < len(roles); i++ {
 		created, err := roles[i].addUserToRole(*db)
@@ -101,7 +101,7 @@ func Login(c *gin.Context, stytchClient *stytchapi.API, db *database.DB) (*User,
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error": err.Error(),
 			})
-			return nil, err
+			return err
 		}
 		if created {
 			row := db.QueryRow("SELECT name FROM roles WHERE id = ?", roles[i].RoleID)
@@ -126,10 +126,10 @@ func Login(c *gin.Context, stytchClient *stytchapi.API, db *database.DB) (*User,
 		"id":             userID,
 		"stytch_user_id": resp.UserID,
 	})
-	return &user, nil
+	return nil
 }
 
-func (u User) validateRoles(db *database.DB) (userRoles []UserRole, err error) {
+func (u UserReq) validateRoles(db *database.DB) (userRoles []UserRole, err error) {
 	var validRoles []Role
 	rows, err := db.Query("SELECT id, name, protected FROM roles")
 	if err != nil {
