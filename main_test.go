@@ -1,6 +1,7 @@
 package main
 
 import (
+	"api/forms"
 	"api/users"
 	"bytes"
 	"encoding/json"
@@ -42,7 +43,6 @@ func TestRoutes(t *testing.T) {
 	}
 
 	authTokenBodyTest := func(t *testing.T, bdy []byte) bool {
-		// fmt.Println("Body:", string(bdy))
 		var sessAuth users.SessionAuth
 		err := json.Unmarshal(bdy, &sessAuth)
 		if err != nil {
@@ -57,6 +57,29 @@ func TestRoutes(t *testing.T) {
 		return true
 	}
 
+	getFormsReq, err := http.NewRequest("GET", "/forms", nil)
+	if err != nil {
+		t.Error("Failed to create request: " + err.Error())
+	}
+	getFormsReq.Header.Set("Authorization", "WJtR5BCy38Szd5AfoDpf0iqFKEt4EE5JhjlWUY7l3FtY")
+
+	getFormsBodyTest := func(t *testing.T, bdy []byte) bool {
+		t.Log("Body: " + string(bdy))
+		type formList struct {
+			Forms []forms.Form `json:"forms"`
+		}
+		var forms formList
+		err := json.Unmarshal(bdy, &forms)
+		if err != nil {
+			t.Error("Failed to unmarshal response body: " + err.Error())
+			return false
+		}
+		if len(forms.Forms) >= 1 {
+			return true
+		}
+		return false
+	}
+
 	testCases := []struct {
 		name     string
 		request  *http.Request
@@ -66,6 +89,7 @@ func TestRoutes(t *testing.T) {
 	}{
 		{name: "ProviderLogin", request: providerLoginReq, wantCode: http.StatusOK},
 		{name: "AuthenticateToken", request: authTokenReq, wantCode: http.StatusOK, testBody: authTokenBodyTest},
+		{name: "GetForms", request: getFormsReq, wantCode: http.StatusOK, testBody: getFormsBodyTest},
 	}
 
 	for _, tc := range testCases {
