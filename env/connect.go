@@ -1,15 +1,19 @@
-package database
+package env
 
 import (
 	"database/sql"
 	"fmt"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ssm"
+	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/stytchauth/stytch-go/v3/stytch"
+	"github.com/stytchauth/stytch-go/v3/stytch/stytchapi"
 )
 
 type SqlConnection struct {
@@ -20,12 +24,23 @@ type SqlConnection struct {
 	Name     string
 }
 
-type DB struct {
-	*sql.DB
+type Env struct {
+	Name   envName
+	DB     *sql.DB
+	Stytch *stytchapi.API
+	Router *gin.Engine
 }
 
-func (db DB) Execute(query string) (sql.Result, error) {
-	statement, err := db.Prepare(query)
+type envName string
+
+const (
+	EnvDev  envName = "dev"
+	EnvTest envName = "test"
+	EnvProd envName = "prod"
+)
+
+func (env Env) SqlExecute(query string) (sql.Result, error) {
+	statement, err := env.DB.Prepare(query)
 	if err != nil {
 		fmt.Println("Failed to prepare SQL " + query)
 		return nil, err
@@ -38,18 +53,22 @@ func (db DB) Execute(query string) (sql.Result, error) {
 	return result, nil
 }
 
-func Connect(env string) (*DB, error) {
-	fmt.Println("app env:", env)
+func Connect(name envName) (*Env, error) {
+	fmt.Println("app env:", name)
+
+	env := Env{
+		Name: name,
+	}
 
 	var db *sql.DB
 	var err error
-	if env == "prod" {
+	if env.Name == EnvProd {
 		fmt.Println("Connecting to prod database")
 
 		// get connection data from SSM
 		sess := session.Must(session.NewSession())
 		svc := ssm.New(sess, aws.NewConfig().WithRegion("us-west-2"))
-		path := fmt.Sprintf("/icc/%s/database/", env)
+		path := fmt.Sprintf("/icc/%s/database/", env.Name)
 		decrypt := true
 		input := ssm.GetParametersByPathInput{
 			Path:           &path,
@@ -97,7 +116,23 @@ func Connect(env string) (*DB, error) {
 	db.SetConnMaxLifetime(time.Minute * 4)
 	db.SetMaxOpenConns(10)
 	db.SetMaxIdleConns(10)
+	env.DB = db
 
-	database := DB{db}
-	return &database, nil
+	env.Stytch = env.initStytch()
+	env.Router = gin.Default()
+
+	return &env, nil
+}
+
+func (env Env) initStytch() *stytchapi.API {
+	stytchProjectID := os.Getenv("STYTCH_PROJECT_ID")
+	stytchSecret := os.Getenv("STYTCH_SECRET")
+
+	var stytchClient *stytchapi.API
+	if env.Name == EnvProd {
+		stytchClient = stytchapi.NewAPIClient(stytch.EnvLive, stytchProjectID, stytchSecret)
+	} else {
+		stytchClient = stytchapi.NewAPIClient(stytch.EnvTest, stytchProjectID, stytchSecret)
+	}
+	return stytchClient
 }

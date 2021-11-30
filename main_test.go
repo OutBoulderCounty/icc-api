@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -15,8 +16,9 @@ import (
 func TestRoutes(t *testing.T) {
 	t.Parallel()
 	gin.SetMode(gin.TestMode)
-	r, db := setup()
-	defer db.Close()
+	os.Setenv("APP_ENV", "test")
+	env := setup()
+	defer env.DB.Close()
 
 	body, err := json.Marshal(users.UserReq{
 		Email:       "sandbox@stytch.com",
@@ -95,7 +97,7 @@ func TestRoutes(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			w := httptest.NewRecorder()
-			r.ServeHTTP(w, tc.request)
+			env.Router.ServeHTTP(w, tc.request)
 			if w.Code != tc.wantCode {
 				t.Errorf("got status code %d; want %d", w.Code, tc.wantCode)
 			}
