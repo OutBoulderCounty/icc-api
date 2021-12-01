@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -16,7 +15,6 @@ import (
 func TestRoutes(t *testing.T) {
 	t.Parallel()
 	gin.SetMode(gin.TestMode)
-	os.Setenv("APP_ENV", "test")
 	env := setup()
 	defer env.DB.Close()
 

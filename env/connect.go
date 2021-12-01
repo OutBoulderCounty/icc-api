@@ -119,7 +119,9 @@ func Connect(name envName) (*Env, error) {
 	env.DB = db
 
 	env.Stytch = env.initStytch()
-	env.Router = gin.Default()
+	if env.Name != EnvTest {
+		env.Router = gin.Default()
+	}
 
 	return &env, nil
 }

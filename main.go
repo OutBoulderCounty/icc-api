@@ -48,7 +48,7 @@ func setup() *env.Env {
 	})
 
 	environment.Router.POST("/login", func(c *gin.Context) {
-		users.Login(c, environment)
+		users.LoginHandler(c, environment)
 	})
 
 	environment.Router.POST("/authenticate", func(c *gin.Context) {

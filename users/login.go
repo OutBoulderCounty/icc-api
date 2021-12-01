@@ -2,6 +2,7 @@ package users
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
 	"net/http"
 
@@ -30,7 +31,59 @@ type UserRole struct {
 	Active bool  `json:"active"`
 }
 
-func Login(c *gin.Context, e *env.Env) error {
+func Login(user UserReq, e *env.Env) error {
+	body := stytch.MagicLinksEmailLoginOrCreateParams{
+		Email:              user.Email,
+		LoginMagicLinkURL:  user.RedirectURL,
+		SignupMagicLinkURL: user.RedirectURL,
+	}
+	resp, err := e.Stytch.MagicLinks.Email.LoginOrCreate(&body)
+	if err != nil {
+		return errors.New("Failed to create magic link: " + err.Error())
+	}
+
+	row := e.DB.QueryRow("SELECT id FROM users WHERE email = ? AND stytchUserID = ?", user.Email, resp.UserID)
+	var userID int64
+	err = row.Scan(&userID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			result, err := e.SqlExecute(fmt.Sprintf("INSERT INTO users (stytchUserID, email) VALUES ('%s', '%s')", resp.UserID, user.Email))
+			if err != nil {
+				return errors.New("Failed to create user: " + err.Error())
+			}
+			userID, err = result.LastInsertId()
+			if err != nil {
+				return errors.New("Failed to get user ID: " + err.Error())
+			}
+		} else {
+			return errors.New("Failed to query user: " + err.Error())
+		}
+	}
+
+	roles, err := user.validateRoles(e.DB)
+	if err != nil {
+		return errors.New("Failed to validate roles: " + err.Error())
+	}
+	for i := 0; i < len(roles); i++ {
+		created, err := roles[i].addUserToRole(e)
+		if err != nil {
+			return errors.New("Failed to add user to role: " + err.Error())
+		}
+		if created {
+			row := e.DB.QueryRow("SELECT name FROM roles WHERE id = ?", roles[i].RoleID)
+			var name string
+			err := row.Scan(&name)
+			if err != nil {
+				return errors.New("Failed to query role: " + err.Error())
+			}
+			fmt.Printf("Added user %s to role %s\n", user.Email, name)
+			// TODO: send notification to slack or email
+		}
+	}
+	return nil
+}
+
+func LoginHandler(c *gin.Context, e *env.Env) error {
 	var user UserReq
 	err := c.BindJSON(&user)
 	if err != nil {
@@ -41,90 +94,15 @@ func Login(c *gin.Context, e *env.Env) error {
 		return err
 	}
 
-	body := stytch.MagicLinksEmailLoginOrCreateParams{
-		Email:              user.Email,
-		LoginMagicLinkURL:  user.RedirectURL,
-		SignupMagicLinkURL: user.RedirectURL,
-	}
-	resp, err := e.Stytch.MagicLinks.Email.LoginOrCreate(&body)
+	err = Login(user, e)
 	if err != nil {
-		fmt.Println("Failed to create magic link: " + err.Error())
+		fmt.Println("Failed to login: " + err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
 		return err
 	}
-
-	row := e.DB.QueryRow("SELECT id FROM users WHERE email = ? AND stytchUserID = ?", user.Email, resp.UserID)
-	var userID int64
-	err = row.Scan(&userID)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			result, err := e.SqlExecute(fmt.Sprintf("INSERT INTO users (stytchUserID, email) VALUES ('%s', '%s')", resp.UserID, user.Email))
-			if err != nil {
-				fmt.Println("Failed to create user: " + err.Error())
-				c.JSON(http.StatusInternalServerError, gin.H{
-					"error": err.Error(),
-				})
-				return err
-			}
-			userID, err = result.LastInsertId()
-			if err != nil {
-				fmt.Println("Failed to get user ID: " + err.Error())
-				c.JSON(http.StatusInternalServerError, gin.H{
-					"error": err.Error(),
-				})
-				return err
-			}
-		} else {
-			fmt.Println("Failed to query user: " + err.Error())
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": err.Error(),
-			})
-			return err
-		}
-	}
-
-	roles, err := user.validateRoles(e.DB)
-	if err != nil {
-		fmt.Println("Failed to validate roles: " + err.Error())
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error": err.Error(),
-		})
-		return err
-	}
-	for i := 0; i < len(roles); i++ {
-		created, err := roles[i].addUserToRole(e)
-		if err != nil {
-			fmt.Println("Failed to add user to role: " + err.Error())
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": err.Error(),
-			})
-			return err
-		}
-		if created {
-			row := e.DB.QueryRow("SELECT name FROM roles WHERE id = ?", roles[i].RoleID)
-			var name string
-			err := row.Scan(&name)
-			if err != nil {
-				fmt.Println("Failed to query role: " + err.Error())
-			}
-			fmt.Printf("Added user %s to role %s\n", user.Email, name)
-			// TODO: send notification to slack or email
-		}
-	}
-
-	var status int
-	if resp.UserCreated {
-		fmt.Println("User created")
-		status = http.StatusCreated
-	} else {
-		status = http.StatusOK
-	}
-	c.JSON(status, gin.H{
-		"id":             userID,
-		"stytch_user_id": resp.UserID,
-	})
+	c.Status(http.StatusOK)
 	return nil
 }
 
