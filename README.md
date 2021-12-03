@@ -50,7 +50,7 @@ I use [httpie](https://httpie.io/cli) to make requests in the examples below, bu
 
    You will receive an email to the email address you provided. Clicking on this link will redirect you to the URL you provided.
 
-   To test locally with only the API running, you can pass http://localhost:8080/localauth as the redirect URL and get a session token that way.
+   To test locally with only the API running, you can pass `http://localhost:8080/localauth` as the redirect URL and get a session token that way.
 
 1. With a session token in hand, you can now make authenticated requests
 
@@ -59,3 +59,13 @@ I use [httpie](https://httpie.io/cli) to make requests in the examples below, bu
    ```
 
    Every time you use your session token, it will be renewed for an additional 7 days. If you do not use your session token for more than 7 days, you will need to login again.
+
+## Available Routes
+
+| Path            | Method | Description                   |
+| --------------- | ------ | ----------------------------- |
+| `/login`        | POST   | Login endpoint                |
+| `/authenticate` | POST   | Authenticate endpoint         |
+| `/localauth`    | GET    | Local authentication endpoint |
+| `/forms`        | GET    | Get all forms                 |
+| `/user`         | PUT    | Update user                   |
