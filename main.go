@@ -17,12 +17,10 @@ import (
 )
 
 func setup() *env.Env {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("Error loading .env file")
-	}
+	godotenv.Load()
 	appEnv := os.Getenv("APP_ENV")
 	var environment *env.Env
+	var err error
 	switch appEnv {
 	case "prod":
 		environment, err = env.Connect(env.EnvProd)
