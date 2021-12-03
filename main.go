@@ -52,7 +52,7 @@ func setup() *env.Env {
 	})
 
 	environment.Router.POST("/authenticate", func(c *gin.Context) {
-		users.AuthenticateUser(c, environment.Stytch)
+		users.AuthenticateUser(c, environment)
 	})
 
 	// for testing locally without a UI
@@ -68,7 +68,7 @@ func setup() *env.Env {
 			})
 			return
 		}
-		sessionToken, err := users.Authenticate(login.Token, environment.Stytch)
+		sessionToken, err := users.Authenticate(login.Token, environment)
 		if err != nil {
 			fmt.Println("Failed to authenticate: " + err.Error())
 			c.JSON(http.StatusUnauthorized, gin.H{
@@ -82,9 +82,15 @@ func setup() *env.Env {
 		})
 	})
 
-	authorized := environment.Router.Group("/forms", authRequired(environment))
+	authorizedUser := environment.Router.Group("/user", authRequired(environment))
 
-	authorized.GET("", func(c *gin.Context) {
+	authorizedUser.PUT("", func(c *gin.Context) {
+		users.UpdateUserHandler(c, environment)
+	})
+
+	authorizedForms := environment.Router.Group("/forms", authRequired(environment))
+
+	authorizedForms.GET("", func(c *gin.Context) {
 		foundForms, err := forms.GetForms(environment.DB)
 		if err != nil {
 			panic(err)

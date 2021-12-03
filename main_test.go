@@ -19,12 +19,12 @@ func TestRoutes(t *testing.T) {
 	defer env.DB.Close()
 
 	body, err := json.Marshal(users.UserReq{
-		Email:       "sandbox@stytch.com",
-		RedirectURL: "http://localhost:8080/localauth",
+		Email:       users.TestUser,
+		RedirectURL: users.TestRedirectURL,
 		Roles:       []string{"provider"},
 	})
 	if err != nil {
-		t.Error("Failed to marshal request: " + err.Error())
+		t.Error("Failed to marshal user req body: " + err.Error())
 	}
 	providerLoginReq, err := http.NewRequest("POST", "/login", bytes.NewBuffer(body))
 	if err != nil {
@@ -32,10 +32,10 @@ func TestRoutes(t *testing.T) {
 	}
 
 	authTokenBody, err := json.Marshal(users.Auth{
-		Token: "DOYoip3rvIMMW5lgItikFK-Ak1CfMsgjuiCyI7uuU94=",
+		Token: users.TestToken,
 	})
 	if err != nil {
-		t.Error("Failed to marshal request: " + err.Error())
+		t.Error("Failed to marshal auth token body: " + err.Error())
 	}
 	authTokenReq, err := http.NewRequest("POST", "/authenticate", bytes.NewBuffer(authTokenBody))
 	if err != nil {
@@ -61,7 +61,7 @@ func TestRoutes(t *testing.T) {
 	if err != nil {
 		t.Error("Failed to create request: " + err.Error())
 	}
-	getFormsReq.Header.Set("Authorization", "WJtR5BCy38Szd5AfoDpf0iqFKEt4EE5JhjlWUY7l3FtY")
+	getFormsReq.Header.Set("Authorization", users.TestSessionToken)
 
 	getFormsBodyTest := func(t *testing.T, bdy []byte) bool {
 		t.Log("Body: " + string(bdy))
@@ -80,6 +80,24 @@ func TestRoutes(t *testing.T) {
 		return false
 	}
 
+	updateUserBody, err := json.Marshal(users.User{
+		FirstName: "Integration",
+		LastName:  "Test",
+	})
+	if err != nil {
+		t.Error("Failed to marshal update user body: " + err.Error())
+	}
+	updateUserReq, err := http.NewRequest("PUT", "/user", bytes.NewBuffer(updateUserBody))
+	if err != nil {
+		t.Error("Failed to create update user request: " + err.Error())
+	}
+	updateUserReq.Header.Set("Authorization", users.TestSessionToken)
+
+	updateUserTest := func(t *testing.T, bdy []byte) bool {
+		t.Log("Update user response body: " + string(bdy))
+		return true
+	}
+
 	testCases := []struct {
 		name     string
 		request  *http.Request
@@ -90,6 +108,7 @@ func TestRoutes(t *testing.T) {
 		{name: "ProviderLogin", request: providerLoginReq, wantCode: http.StatusOK},
 		{name: "AuthenticateToken", request: authTokenReq, wantCode: http.StatusOK, testBody: authTokenBodyTest},
 		{name: "GetForms", request: getFormsReq, wantCode: http.StatusOK, testBody: getFormsBodyTest},
+		{name: "UpdateUser", request: updateUserReq, wantCode: http.StatusOK, testBody: updateUserTest},
 	}
 
 	for _, tc := range testCases {
