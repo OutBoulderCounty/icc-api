@@ -1,3 +1,19 @@
+// Inclusive Care CO REST API
+//
+// This is the REST API for the Inclusive Care CO application.
+//
+//		Schemes: http
+//		Host: localhost:8080
+//		BasePath: /
+//		License: 0BSD
+//
+// 		Consumes:
+// 		- application/json
+//
+// 		Produces:
+// 		- application/json
+//
+// swagger:meta
 package main
 
 import (
@@ -16,6 +32,7 @@ import (
 	"github.com/stytchauth/stytch-go/v3/stytch"
 )
 
+//go:generate swagger generate spec -o swagger.json
 func setup() *env.Env {
 	godotenv.Load()
 	appEnv := os.Getenv("APP_ENV")
@@ -37,10 +54,15 @@ func setup() *env.Env {
 
 	config := cors.DefaultConfig()
 	config.AllowWildcard = true
-	config.AllowOrigins = []string{"http://localhost:8000", "https://*.inclusivecareco.org", "http://localhost:3000", "http://localhost:3002"}
+	config.AllowOrigins = []string{"http://localhost:8000", "https://*.inclusivecareco.org", "http://localhost:3000", "http://localhost:3002", "https://icc-provider-ui.vercel.app"}
 	config.AllowHeaders = []string{"Origin", "Content-Length", "Content-Type", "Authorization"}
 	environment.Router.Use(cors.New(config))
 
+	// swagger:route GET / root
+	//
+	// Health check
+	//
+	// A health check route for the API. Returns the string "Hello World!" if the API is up and running.
 	environment.Router.GET("/", func(c *gin.Context) {
 		c.String(http.StatusOK, "Hello World!")
 	})
