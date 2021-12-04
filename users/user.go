@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -102,6 +103,34 @@ func GetUserByStytchID(stytchUserID *string, e *env.Env) (*User, error) {
 	}
 	user := dbUser.ToUser()
 	return user, nil
+}
+
+func GetUserBySession(sessionToken string, e *env.Env) (*User, error) {
+	if sessionToken == "" {
+		return nil, errors.New("session token is required")
+	}
+	// get user id from session token
+	params := &stytch.SessionsAuthenticateParams{
+		SessionToken: sessionToken,
+	}
+	resp, err := e.Stytch.Sessions.Authenticate(params)
+	if err != nil {
+		return nil, errors.New("failed to authenticate session: " + err.Error())
+	}
+	user, err := GetUserByStytchID(&resp.Session.UserID, e)
+	if err != nil {
+		return nil, errors.New("failed to get user from DB: " + err.Error())
+	}
+	return user, nil
+}
+
+func GetUserHandler(c *gin.Context, e *env.Env) {
+	user, err := GetUserBySession(c.GetHeader("Authorization"), e)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"user": user})
 }
 
 func UpdateUser(sessionToken string, user *User, e *env.Env) (int64, error) {

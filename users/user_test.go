@@ -44,17 +44,10 @@ func TestUpdateUser(t *testing.T) {
 		RedirectURL: users.TestRedirectURL,
 	}
 	// login a user
-	stytchID, err := users.Login(userReq, e)
+	_, err := users.Login(userReq, e)
 	if err != nil {
 		t.Error("Login failed. " + err.Error())
 	}
-	// delete the user in a deferred function
-	defer func() {
-		err = users.DeleteUser(stytchID, e)
-		if err != nil {
-			t.Error("Failed to delete user. " + err.Error())
-		}
-	}()
 	sessToken, err := users.Authenticate(users.TestToken, e)
 	if err != nil {
 		t.Error("Failed to authenticate user. " + err.Error())
@@ -107,5 +100,35 @@ func TestUpdateUser(t *testing.T) {
 	}
 	if u.Phone != user.Phone {
 		t.Error("User phone not updated.")
+	}
+}
+
+func TestGetUserBySession(t *testing.T) {
+	e := setup(t, true)
+
+	userReq := users.UserReq{
+		Email:       users.TestUser,
+		RedirectURL: users.TestRedirectURL,
+	}
+	// login a user
+	_, err := users.Login(userReq, e)
+	if err != nil {
+		t.Error("Login failed. " + err.Error())
+	}
+	sessToken, err := users.Authenticate(users.TestToken, e)
+	if err != nil {
+		t.Error("Failed to authenticate user. " + err.Error())
+	}
+	if sessToken == "" {
+		t.Error("Failed to authenticate user. No session token returned.")
+	}
+
+	// get the user by session token
+	u, err := users.GetUserBySession(sessToken, e)
+	if err != nil {
+		t.Error("Failed to get user by session. " + err.Error())
+	}
+	if u.Email != userReq.Email {
+		t.Error("User email not returned.")
 	}
 }

@@ -98,6 +98,12 @@ func TestRoutes(t *testing.T) {
 		return true
 	}
 
+	getUserReq, err := http.NewRequest("GET", "/user", nil)
+	if err != nil {
+		t.Error("Failed to create get user request: " + err.Error())
+	}
+	getUserReq.Header.Set("Authorization", users.TestSessionToken)
+
 	testCases := []struct {
 		name     string
 		request  *http.Request
@@ -109,6 +115,7 @@ func TestRoutes(t *testing.T) {
 		{name: "AuthenticateToken", request: authTokenReq, wantCode: http.StatusOK, testBody: authTokenBodyTest},
 		{name: "GetForms", request: getFormsReq, wantCode: http.StatusOK, testBody: getFormsBodyTest},
 		{name: "UpdateUser", request: updateUserReq, wantCode: http.StatusOK, testBody: updateUserTest},
+		{name: "GetUser", request: getUserReq, wantCode: http.StatusOK},
 	}
 
 	for _, tc := range testCases {

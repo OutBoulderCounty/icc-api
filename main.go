@@ -108,6 +108,10 @@ func setup() *env.Env {
 		users.UpdateUserHandler(c, environment)
 	})
 
+	authorizedUser.GET("", func(c *gin.Context) {
+		users.GetUserHandler(c, environment)
+	})
+
 	authorizedForms := environment.Router.Group("/forms", authRequired(environment))
 
 	authorizedForms.GET("", func(c *gin.Context) {
