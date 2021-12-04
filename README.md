@@ -62,10 +62,11 @@ I use [httpie](https://httpie.io/cli) to make requests in the examples below, bu
 
 ## Available Routes
 
-| Path            | Method | Description                   |
-| --------------- | ------ | ----------------------------- |
-| `/login`        | POST   | Login endpoint                |
-| `/authenticate` | POST   | Authenticate endpoint         |
-| `/localauth`    | GET    | Local authentication endpoint |
-| `/forms`        | GET    | Get all forms                 |
-| `/user`         | PUT    | Update user                   |
+| Path            | Method | Description                    |
+| --------------- | ------ | ------------------------------ |
+| `/login`        | POST   | Login endpoint                 |
+| `/authenticate` | POST   | Authenticate endpoint          |
+| `/localauth`    | GET    | Local authentication endpoint  |
+| `/forms`        | GET    | Get all forms                  |
+| `/user`         | PUT    | Update user                    |
+| `/user`         | GET    | Get user data by session token |
