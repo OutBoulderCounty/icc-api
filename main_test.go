@@ -81,8 +81,9 @@ func TestRoutes(t *testing.T) {
 	}
 
 	updateUserBody, err := json.Marshal(users.User{
-		FirstName: "Integration",
-		LastName:  "Test",
+		FirstName:         "Integration",
+		LastName:          "Test",
+		AgreementAccepted: true,
 	})
 	if err != nil {
 		t.Error("Failed to marshal update user body: " + err.Error())
@@ -94,7 +95,30 @@ func TestRoutes(t *testing.T) {
 	updateUserReq.Header.Set("Authorization", users.TestSessionToken)
 
 	updateUserTest := func(t *testing.T, bdy []byte) bool {
-		t.Log("Update user response body: " + string(bdy))
+		type updateUserResp struct {
+			User users.User `json:"user"`
+		}
+		var resp updateUserResp
+		err := json.Unmarshal(bdy, &resp)
+		if err != nil {
+			t.Error("Failed to unmarshal user response: " + err.Error())
+			return false
+		}
+		if !resp.User.AgreementAccepted {
+			t.Error("User agreement not marked as accepted")
+			return false
+		}
+
+		user, err := users.Get(resp.User.ID, env.DB)
+		if err != nil {
+			t.Error("Failed to get user: " + err.Error())
+			return false
+		}
+		t.Log("User agreement accepted:", user.AgreementAccepted)
+		if !user.AgreementAccepted {
+			t.Error("User agreement not accepted")
+			return false
+		}
 		return true
 	}
 

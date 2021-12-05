@@ -18,17 +18,18 @@ const TestToken = "DOYoip3rvIMMW5lgItikFK-Ak1CfMsgjuiCyI7uuU94="
 const TestSessionToken = "WJtR5BCy38Szd5AfoDpf0iqFKEt4EE5JhjlWUY7l3FtY"
 
 type User struct {
-	ID           int64
-	StytchUserID string
-	Email        string
-	ActiveRoles  []string
-	FirstName    string
-	LastName     string
-	Pronouns     string
-	PracticeName string
-	Address      string
-	Specialty    string
-	Phone        string
+	ID                int64
+	StytchUserID      string
+	Email             string
+	ActiveRoles       []string
+	FirstName         string
+	LastName          string
+	Pronouns          string
+	PracticeName      string
+	Address           string
+	Specialty         string
+	Phone             string
+	AgreementAccepted bool
 }
 
 type sqlUser struct {
@@ -54,12 +55,13 @@ func (u *sqlUser) ToUser() *User {
 	user.Address = u.Address.String
 	user.Specialty = u.Specialty.String
 	user.Phone = u.Phone.String
+	user.AgreementAccepted = u.AgreementAccepted
 	return &user
 }
 
 // retrieves a single user from the database
 func Get(id int64, db *sql.DB) (*User, error) {
-	row := db.QueryRow("SELECT id, stytchUserID, email, firstName, lastName, pronouns, practiceName, address, specialty, phone FROM users WHERE id = ?", id)
+	row := db.QueryRow("SELECT id, stytchUserID, email, firstName, lastName, pronouns, practiceName, address, specialty, phone, agreementAccepted FROM users WHERE id = ?", id)
 	var dbUser sqlUser
 	err := row.Scan(
 		&dbUser.ID,
@@ -72,6 +74,7 @@ func Get(id int64, db *sql.DB) (*User, error) {
 		&dbUser.Address,
 		&dbUser.Specialty,
 		&dbUser.Phone,
+		&dbUser.AgreementAccepted,
 	)
 	if err != nil {
 		return nil, err
@@ -84,7 +87,7 @@ func GetUserByStytchID(stytchUserID *string, e *env.Env) (*User, error) {
 	if stytchUserID == nil {
 		return nil, errors.New("stytchUserID is required")
 	}
-	row := e.DB.QueryRow("SELECT id, stytchUserID, email, firstName, lastName, pronouns, practiceName, address, specialty, phone FROM users WHERE stytchUserID = ?", *stytchUserID)
+	row := e.DB.QueryRow("SELECT id, stytchUserID, email, firstName, lastName, pronouns, practiceName, address, specialty, phone, agreementAccepted FROM users WHERE stytchUserID = ?", *stytchUserID)
 	var dbUser sqlUser
 	err := row.Scan(
 		&dbUser.ID,
@@ -97,6 +100,7 @@ func GetUserByStytchID(stytchUserID *string, e *env.Env) (*User, error) {
 		&dbUser.Address,
 		&dbUser.Specialty,
 		&dbUser.Phone,
+		&dbUser.AgreementAccepted,
 	)
 	if err != nil {
 		return nil, err
@@ -158,7 +162,7 @@ func UpdateUser(sessionToken string, user *User, e *env.Env) (int64, error) {
 	}
 
 	_, err = e.SqlExecute(fmt.Sprintf(
-		"UPDATE users SET email = '%s', firstName = '%s', lastName = '%s', pronouns = '%s', practiceName = '%s', address = '%s', specialty = '%s', phone = '%s' WHERE stytchUserID = '%s'",
+		"UPDATE users SET email = '%s', firstName = '%s', lastName = '%s', pronouns = '%s', practiceName = '%s', address = '%s', specialty = '%s', phone = '%s', agreementAccepted = %v WHERE stytchUserID = '%s'",
 		user.Email,
 		user.FirstName,
 		user.LastName,
@@ -167,6 +171,7 @@ func UpdateUser(sessionToken string, user *User, e *env.Env) (int64, error) {
 		user.Address,
 		user.Specialty,
 		user.Phone,
+		user.AgreementAccepted,
 		user.StytchUserID,
 	))
 	if err != nil {
