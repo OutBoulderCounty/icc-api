@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"testing"
 	"time"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -12,6 +13,7 @@ import (
 	"github.com/aws/aws-sdk-go/service/ssm"
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
+	"github.com/joho/godotenv"
 	"github.com/stytchauth/stytch-go/v3/stytch"
 	"github.com/stytchauth/stytch-go/v3/stytch/stytchapi"
 )
@@ -137,4 +139,19 @@ func (env Env) initStytch() *stytchapi.API {
 		stytchClient = stytchapi.NewAPIClient(stytch.EnvTest, stytchProjectID, stytchSecret)
 	}
 	return stytchClient
+}
+
+func TestSetup(t *testing.T, parallel bool) *Env {
+	if parallel {
+		t.Parallel()
+	}
+	err := godotenv.Load("../.env")
+	if err != nil {
+		t.Error("Failed to load ../.env. " + err.Error())
+	}
+	e, err := Connect(EnvTest)
+	if err != nil {
+		t.Error("Failed to connect services. " + err.Error())
+	}
+	return e
 }

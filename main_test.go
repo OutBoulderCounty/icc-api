@@ -80,6 +80,33 @@ func TestRoutes(t *testing.T) {
 		return false
 	}
 
+	getFormReq, err := http.NewRequest("GET", "/form/1", nil)
+	if err != nil {
+		t.Error("Failed to create get form request: " + err.Error())
+	}
+	getFormReq.Header.Set("Authorization", users.TestSessionToken)
+
+	getFormBodyTest := func(t *testing.T, bdy []byte) bool {
+		type formResp struct {
+			Form forms.Form `json:"form"`
+		}
+		var form formResp
+		err := json.Unmarshal(bdy, &form)
+		if err != nil {
+			t.Error("Failed to unmarshal get form response body: " + err.Error())
+			return false
+		}
+		if form.Form.ID != 1 {
+			t.Error("Form ID is incorrect")
+			return false
+		}
+		if len(form.Form.Elements) == 0 {
+			t.Error("Form has no elements")
+			return false
+		}
+		return true
+	}
+
 	updateUserBody, err := json.Marshal(users.User{
 		FirstName:         "Integration",
 		LastName:          "Test",
@@ -138,6 +165,7 @@ func TestRoutes(t *testing.T) {
 		{name: "ProviderLogin", request: providerLoginReq, wantCode: http.StatusOK},
 		{name: "AuthenticateToken", request: authTokenReq, wantCode: http.StatusOK, testBody: authTokenBodyTest},
 		{name: "GetForms", request: getFormsReq, wantCode: http.StatusOK, testBody: getFormsBodyTest},
+		{name: "GetForm", request: getFormReq, wantCode: http.StatusOK, testBody: getFormBodyTest},
 		{name: "UpdateUser", request: updateUserReq, wantCode: http.StatusOK, testBody: updateUserTest},
 		{name: "GetUser", request: getUserReq, wantCode: http.StatusOK},
 	}

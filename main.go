@@ -21,6 +21,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 
 	"api/env"
 	"api/forms"
@@ -122,6 +123,22 @@ func setup() *env.Env {
 		c.JSON(http.StatusOK, gin.H{
 			"forms": foundForms,
 		})
+	})
+
+	authorizedForm := environment.Router.Group("/form", authRequired(environment))
+	authorizedForm.GET("/:id", func(c *gin.Context) {
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		form, err := forms.GetForm(id, environment.DB)
+		if err != nil {
+			panic(err)
+		}
+		c.JSON(http.StatusOK, gin.H{"form": form})
 	})
 
 	return environment
