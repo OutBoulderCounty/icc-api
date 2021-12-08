@@ -144,11 +144,7 @@ func setup() *env.Env {
 
 	authorizedResponse := environment.Router.Group("/response", authRequired(environment))
 	authorizedResponse.POST("", func(c *gin.Context) {
-		type responseReq struct {
-			ElementID string `json:"element_id"`
-			Value     string `json:"value"`
-		}
-		var response responseReq
+		var response responses.Response
 		err := c.ShouldBindJSON(&response)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -166,21 +162,13 @@ func setup() *env.Env {
 			return
 		}
 
-		elementID, err := strconv.ParseInt(response.ElementID, 10, 64)
+		resp, err := responses.NewResponse(response.ElementID, user.ID, response.Value, environment.DB)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error": err.Error(),
 			})
 			return
 		}
-		resp, err := responses.NewResponse(elementID, user.ID, response.Value, environment.DB)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error": err.Error(),
-			})
-			return
-		}
-		fmt.Println("Created response:", resp)
 		c.JSON(http.StatusOK, gin.H{"response": resp})
 	})
 

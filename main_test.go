@@ -157,9 +157,9 @@ func TestRoutes(t *testing.T) {
 	}
 	getUserReq.Header.Set("Authorization", users.TestSessionToken)
 
-	newResponseBody, err := json.Marshal(map[string]string{
-		"element_id": "1",
-		"value":      "test",
+	newResponseBody, err := json.Marshal(responses.Response{
+		ElementID: 1,
+		Value:     "test",
 	})
 	if err != nil {
 		t.Error("Failed to marshal response body: " + err.Error())

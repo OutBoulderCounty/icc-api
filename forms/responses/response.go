@@ -8,9 +8,9 @@ import (
 
 type Response struct {
 	ID        int64
-	ElementID int64
+	ElementID int64 `json:"element_id"`
 	UserID    int64
-	Value     string
+	Value     string `json:"value"`
 }
 
 func NewResponse(elementID int64, userID int64, value string, db *sql.DB) (*Response, error) {
