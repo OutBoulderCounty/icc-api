@@ -70,3 +70,4 @@ I use [httpie](https://httpie.io/cli) to make requests in the examples below, bu
 | `/forms`        | GET    | Get all forms                  |
 | `/user`         | PUT    | Update user                    |
 | `/user`         | GET    | Get user data by session token |
+| `/response`     | POST   | Submit a response              |

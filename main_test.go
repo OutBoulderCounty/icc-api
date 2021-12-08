@@ -2,9 +2,11 @@ package main
 
 import (
 	"api/forms"
+	"api/forms/responses"
 	"api/users"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -155,6 +157,43 @@ func TestRoutes(t *testing.T) {
 	}
 	getUserReq.Header.Set("Authorization", users.TestSessionToken)
 
+	newResponseBody, err := json.Marshal(map[string]string{
+		"element_id": "1",
+		"value":      "test",
+	})
+	if err != nil {
+		t.Error("Failed to marshal response body: " + err.Error())
+	}
+	newResponseReq, err := http.NewRequest("POST", "/response", bytes.NewBuffer(newResponseBody))
+	if err != nil {
+		t.Error("Failed to create new response request: " + err.Error())
+	}
+	newResponseReq.Header.Set("Authorization", users.TestSessionToken)
+	newResponseTest := func(t *testing.T, bdy []byte) bool {
+		type newResponseResp struct {
+			Response responses.Response `json:"response"`
+		}
+		var resp newResponseResp
+		err := json.Unmarshal(bdy, &resp)
+		if err != nil {
+			t.Error("Failed to unmarshal response body: " + err.Error())
+			return false
+		}
+		if resp.Response.ID == 0 {
+			t.Error("Response ID is 0")
+			return false
+		}
+		if resp.Response.ElementID != 1 {
+			t.Error(fmt.Sprintf("Response element ID is %d, expected 1", resp.Response.ElementID))
+			return false
+		}
+		if resp.Response.Value != "test" {
+			t.Error(fmt.Sprintf("Response value is %s, expected test", resp.Response.Value))
+			return false
+		}
+		return true
+	}
+
 	testCases := []struct {
 		name     string
 		request  *http.Request
@@ -168,6 +207,7 @@ func TestRoutes(t *testing.T) {
 		{name: "GetForm", request: getFormReq, wantCode: http.StatusOK, testBody: getFormBodyTest},
 		{name: "UpdateUser", request: updateUserReq, wantCode: http.StatusOK, testBody: updateUserTest},
 		{name: "GetUser", request: getUserReq, wantCode: http.StatusOK},
+		{name: "NewResponse", request: newResponseReq, wantCode: http.StatusOK, testBody: newResponseTest},
 	}
 
 	for _, tc := range testCases {
