@@ -7,7 +7,7 @@ import (
 )
 
 func TestGetForm(t *testing.T) {
-	e := env.TestSetup(t, true)
+	e := env.TestSetup(t, true, "../.env")
 	// get a form that has elements and options
 	selectForms := "select id from forms where id in (select distinct formID from elements where id in (select distinct elementID from options))"
 	row := e.DB.QueryRow(selectForms)

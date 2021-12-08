@@ -141,11 +141,11 @@ func (env Env) initStytch() *stytchapi.API {
 	return stytchClient
 }
 
-func TestSetup(t *testing.T, parallel bool) *Env {
+func TestSetup(t *testing.T, parallel bool, pathToDotEnv string) *Env {
 	if parallel {
 		t.Parallel()
 	}
-	err := godotenv.Load("../.env")
+	err := godotenv.Load(pathToDotEnv)
 	if err != nil {
 		t.Error("Failed to load ../.env. " + err.Error())
 	}
