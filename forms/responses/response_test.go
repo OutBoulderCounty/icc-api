@@ -71,3 +71,51 @@ func TestNewResponseWithInvalidUser(t *testing.T) {
 		t.Error("Expected error when creating response with invalid user")
 	}
 }
+
+func TestNewResponseWithOptions(t *testing.T) {
+	e := env.TestSetup(t, true, pathToDotEnv)
+	selectElement := "select distinct(elementID) from options;"
+	var elementID int64
+	err := e.DB.QueryRow(selectElement).Scan(&elementID)
+	if err != nil {
+		t.Error("failed to get element ID: " + err.Error())
+		return
+	}
+	selectOptions := "select id from options where elementID = ?;"
+	var optionIDs []int64
+	rows, err := e.DB.Query(selectOptions, elementID)
+	if err != nil {
+		t.Error("failed to get options: " + err.Error())
+		return
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var optionID int64
+		err := rows.Scan(&optionID)
+		if err != nil {
+			t.Error("failed to get option ID: " + err.Error())
+			return
+		}
+		optionIDs = append(optionIDs, optionID)
+	}
+	userID := int64(1)
+
+	response, err := responses.NewResponseWithOptions(elementID, userID, optionIDs, e.DB)
+	if err != nil {
+		t.Error("failed to create response with options: " + err.Error())
+		return
+	}
+	if response.ID == 0 {
+		t.Error("expected response ID to be set")
+	}
+	if response.ElementID != elementID {
+		t.Error("expected ElementID to be", elementID, "; got", response.ElementID)
+	}
+	if response.UserID != userID {
+		t.Error("expected UserID to be", userID, "; got", response.UserID)
+	}
+	// TODO: test that the response has the correct options
+	if len(response.OptionIDs) != len(optionIDs) {
+		t.Error("expected OptionIDs to be", optionIDs, "; got", response.OptionIDs)
+	}
+}

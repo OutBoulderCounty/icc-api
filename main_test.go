@@ -194,6 +194,21 @@ func TestRoutes(t *testing.T) {
 		return true
 	}
 
+	newResponseWithOptionsBody, err := json.Marshal(responses.Response{
+		ElementID: 2,
+		OptionIDs: []int64{2, 3, 4},
+	})
+	if err != nil {
+		t.Error("Failed to marshal response with options body: " + err.Error())
+		return
+	}
+	newResponseWithOptionsReq, err := http.NewRequest("POST", "/response", bytes.NewBuffer(newResponseWithOptionsBody))
+	if err != nil {
+		t.Error("Failed to create new response with options request: " + err.Error())
+		return
+	}
+	newResponseWithOptionsReq.Header.Set("Authorization", users.TestSessionToken)
+
 	testCases := []struct {
 		name     string
 		request  *http.Request
@@ -208,6 +223,7 @@ func TestRoutes(t *testing.T) {
 		{name: "UpdateUser", request: updateUserReq, wantCode: http.StatusOK, testBody: updateUserTest},
 		{name: "GetUser", request: getUserReq, wantCode: http.StatusOK},
 		{name: "NewResponse", request: newResponseReq, wantCode: http.StatusOK, testBody: newResponseTest},
+		{name: "NewResponseWithOptions", request: newResponseWithOptionsReq, wantCode: http.StatusOK},
 	}
 
 	for _, tc := range testCases {
