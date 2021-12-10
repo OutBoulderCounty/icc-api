@@ -2,9 +2,11 @@ package main
 
 import (
 	"api/forms"
+	"api/forms/responses"
 	"api/users"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -80,6 +82,33 @@ func TestRoutes(t *testing.T) {
 		return false
 	}
 
+	getFormReq, err := http.NewRequest("GET", "/form/1", nil)
+	if err != nil {
+		t.Error("Failed to create get form request: " + err.Error())
+	}
+	getFormReq.Header.Set("Authorization", users.TestSessionToken)
+
+	getFormBodyTest := func(t *testing.T, bdy []byte) bool {
+		type formResp struct {
+			Form forms.Form `json:"form"`
+		}
+		var form formResp
+		err := json.Unmarshal(bdy, &form)
+		if err != nil {
+			t.Error("Failed to unmarshal get form response body: " + err.Error())
+			return false
+		}
+		if form.Form.ID != 1 {
+			t.Error("Form ID is incorrect")
+			return false
+		}
+		if len(form.Form.Elements) == 0 {
+			t.Error("Form has no elements")
+			return false
+		}
+		return true
+	}
+
 	updateUserBody, err := json.Marshal(users.User{
 		FirstName:         "Integration",
 		LastName:          "Test",
@@ -128,6 +157,79 @@ func TestRoutes(t *testing.T) {
 	}
 	getUserReq.Header.Set("Authorization", users.TestSessionToken)
 
+	newResponseBody, err := json.Marshal(responses.Response{
+		ElementID: 1,
+		Value:     "test",
+	})
+	if err != nil {
+		t.Error("Failed to marshal response body: " + err.Error())
+	}
+	newResponseReq, err := http.NewRequest("POST", "/response", bytes.NewBuffer(newResponseBody))
+	if err != nil {
+		t.Error("Failed to create new response request: " + err.Error())
+	}
+	newResponseReq.Header.Set("Authorization", users.TestSessionToken)
+	type newResponseResp struct {
+		Response responses.Response `json:"response"`
+	}
+	newResponseTest := func(t *testing.T, bdy []byte) bool {
+		var resp newResponseResp
+		err := json.Unmarshal(bdy, &resp)
+		if err != nil {
+			t.Error("Failed to unmarshal response body: " + err.Error())
+			return false
+		}
+		if resp.Response.ID == 0 {
+			t.Error("Response ID is 0")
+			return false
+		}
+		if resp.Response.ElementID != 1 {
+			t.Error(fmt.Sprintf("Response element ID is %d, expected 1", resp.Response.ElementID))
+			return false
+		}
+		if resp.Response.Value != "test" {
+			t.Error(fmt.Sprintf("Response value is %s, expected test", resp.Response.Value))
+			return false
+		}
+		return true
+	}
+
+	newResponseWithOptionsBody, err := json.Marshal(responses.Response{
+		ElementID: 2,
+		OptionIDs: []int64{2, 3, 4},
+	})
+	if err != nil {
+		t.Error("Failed to marshal response with options body: " + err.Error())
+		return
+	}
+	newResponseWithOptionsReq, err := http.NewRequest("POST", "/response", bytes.NewBuffer(newResponseWithOptionsBody))
+	if err != nil {
+		t.Error("Failed to create new response with options request: " + err.Error())
+		return
+	}
+	newResponseWithOptionsReq.Header.Set("Authorization", users.TestSessionToken)
+	newResponseWithOptionsTest := func(t *testing.T, bdy []byte) bool {
+		var resp newResponseResp
+		err := json.Unmarshal(bdy, &resp)
+		if err != nil {
+			t.Error("Failed to unmarshal response body: " + err.Error())
+			return false
+		}
+		var found []int64
+		for _, opt := range resp.Response.OptionIDs {
+			if opt != 2 && opt != 3 && opt != 4 {
+				t.Error(fmt.Sprintf("Response option ID is %d, expected 2, 3, or 4", opt))
+				return false
+			}
+			found = append(found, opt)
+		}
+		if len(found) != 3 {
+			t.Error("Response option IDs are incorrect. Got:", found)
+			return false
+		}
+		return true
+	}
+
 	testCases := []struct {
 		name     string
 		request  *http.Request
@@ -138,8 +240,11 @@ func TestRoutes(t *testing.T) {
 		{name: "ProviderLogin", request: providerLoginReq, wantCode: http.StatusOK},
 		{name: "AuthenticateToken", request: authTokenReq, wantCode: http.StatusOK, testBody: authTokenBodyTest},
 		{name: "GetForms", request: getFormsReq, wantCode: http.StatusOK, testBody: getFormsBodyTest},
+		{name: "GetForm", request: getFormReq, wantCode: http.StatusOK, testBody: getFormBodyTest},
 		{name: "UpdateUser", request: updateUserReq, wantCode: http.StatusOK, testBody: updateUserTest},
 		{name: "GetUser", request: getUserReq, wantCode: http.StatusOK},
+		{name: "NewResponse", request: newResponseReq, wantCode: http.StatusOK, testBody: newResponseTest},
+		{name: "NewResponseWithOptions", request: newResponseWithOptionsReq, wantCode: http.StatusOK, testBody: newResponseWithOptionsTest},
 	}
 
 	for _, tc := range testCases {

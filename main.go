@@ -21,9 +21,11 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 
 	"api/env"
 	"api/forms"
+	"api/forms/responses"
 	"api/users"
 
 	"github.com/gin-contrib/cors"
@@ -122,6 +124,59 @@ func setup() *env.Env {
 		c.JSON(http.StatusOK, gin.H{
 			"forms": foundForms,
 		})
+	})
+
+	authorizedForm := environment.Router.Group("/form", authRequired(environment))
+	authorizedForm.GET("/:id", func(c *gin.Context) {
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		form, err := forms.GetForm(id, environment.DB)
+		if err != nil {
+			panic(err)
+		}
+		c.JSON(http.StatusOK, gin.H{"form": form})
+	})
+
+	authorizedResponse := environment.Router.Group("/response", authRequired(environment))
+	authorizedResponse.POST("", func(c *gin.Context) {
+		var response responses.Response
+		err := c.ShouldBindJSON(&response)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+
+		// get user ID from session token
+		user, err := users.GetUserBySession(c.Request.Header.Get("Authorization"), environment)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+
+		var resp *responses.Response
+		// NOTE: potential problem here because someone could pass both option IDs and a value.
+		// If Option IDs are passed, any value passed will not be stored.
+		if response.OptionIDs != nil {
+			resp, err = responses.NewResponseWithOptions(response.ElementID, user.ID, response.OptionIDs, environment.DB)
+		} else {
+			resp, err = responses.NewResponse(response.ElementID, user.ID, response.Value, environment.DB)
+		}
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"response": resp})
 	})
 
 	return environment
