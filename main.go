@@ -162,7 +162,14 @@ func setup() *env.Env {
 			return
 		}
 
-		resp, err := responses.NewResponse(response.ElementID, user.ID, response.Value, environment.DB)
+		var resp *responses.Response
+		// NOTE: potential problem here because someone could pass both option IDs and a value.
+		// If Option IDs are passed, any value passed will not be stored.
+		if response.OptionIDs != nil {
+			resp, err = responses.NewResponseWithOptions(response.ElementID, user.ID, response.OptionIDs, environment.DB)
+		} else {
+			resp, err = responses.NewResponse(response.ElementID, user.ID, response.Value, environment.DB)
+		}
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error": err.Error(),

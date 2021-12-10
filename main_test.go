@@ -169,10 +169,10 @@ func TestRoutes(t *testing.T) {
 		t.Error("Failed to create new response request: " + err.Error())
 	}
 	newResponseReq.Header.Set("Authorization", users.TestSessionToken)
+	type newResponseResp struct {
+		Response responses.Response `json:"response"`
+	}
 	newResponseTest := func(t *testing.T, bdy []byte) bool {
-		type newResponseResp struct {
-			Response responses.Response `json:"response"`
-		}
 		var resp newResponseResp
 		err := json.Unmarshal(bdy, &resp)
 		if err != nil {
@@ -208,6 +208,27 @@ func TestRoutes(t *testing.T) {
 		return
 	}
 	newResponseWithOptionsReq.Header.Set("Authorization", users.TestSessionToken)
+	newResponseWithOptionsTest := func(t *testing.T, bdy []byte) bool {
+		var resp newResponseResp
+		err := json.Unmarshal(bdy, &resp)
+		if err != nil {
+			t.Error("Failed to unmarshal response body: " + err.Error())
+			return false
+		}
+		var found []int64
+		for _, opt := range resp.Response.OptionIDs {
+			if opt != 2 && opt != 3 && opt != 4 {
+				t.Error(fmt.Sprintf("Response option ID is %d, expected 2, 3, or 4", opt))
+				return false
+			}
+			found = append(found, opt)
+		}
+		if len(found) != 3 {
+			t.Error("Response option IDs are incorrect. Got:", found)
+			return false
+		}
+		return true
+	}
 
 	testCases := []struct {
 		name     string
@@ -223,7 +244,7 @@ func TestRoutes(t *testing.T) {
 		{name: "UpdateUser", request: updateUserReq, wantCode: http.StatusOK, testBody: updateUserTest},
 		{name: "GetUser", request: getUserReq, wantCode: http.StatusOK},
 		{name: "NewResponse", request: newResponseReq, wantCode: http.StatusOK, testBody: newResponseTest},
-		{name: "NewResponseWithOptions", request: newResponseWithOptionsReq, wantCode: http.StatusOK},
+		{name: "NewResponseWithOptions", request: newResponseWithOptionsReq, wantCode: http.StatusOK, testBody: newResponseWithOptionsTest},
 	}
 
 	for _, tc := range testCases {
