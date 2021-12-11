@@ -78,6 +78,17 @@ func NewResponseWithOptions(elementID int64, userID int64, optionIDs []int64, db
 
 	// insert response options
 	for _, optionID := range optionIDs {
+		// validate the option exists for the element
+		selectOption := "SELECT id FROM options WHERE id = ? AND elementID = ?"
+		var selectedOption int64
+		err := db.QueryRow(selectOption, optionID, elementID).Scan(&selectedOption)
+		if err != nil {
+			return nil, fmt.Errorf("error selecting option %v for element %v: %s", optionID, elementID, err.Error())
+		}
+		if selectedOption == 0 {
+			return nil, fmt.Errorf("option %v not found for element %v", optionID, elementID)
+		}
+
 		_, err = db.Exec("INSERT INTO response_options (responseID, optionID) VALUES (?, ?)", resp.ID, optionID)
 		if err != nil {
 			return nil, errors.New("error inserting response options: " + err.Error())
