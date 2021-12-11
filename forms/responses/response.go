@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 )
 
 type Response struct {
@@ -12,6 +13,7 @@ type Response struct {
 	UserID    int64
 	Value     string  `json:"value"`
 	OptionIDs []int64 `json:"option_ids"`
+	CreatedAt time.Time
 }
 
 func NewResponse(elementID int64, userID int64, value string, db *sql.DB) (*Response, error) {
@@ -41,8 +43,9 @@ func NewResponse(elementID int64, userID int64, value string, db *sql.DB) (*Resp
 		ElementID: elementID,
 		UserID:    userID,
 		Value:     value,
+		CreatedAt: time.Now(),
 	}
-	result, err := db.Exec("INSERT INTO responses (elementID, userID, value) VALUES (?, ?, ?)", elementID, userID, value)
+	result, err := db.Exec("INSERT INTO responses (elementID, userID, value, createdAt) VALUES (?, ?, ?, ?)", elementID, userID, value, resp.CreatedAt)
 	if err != nil {
 		return nil, errors.New("error inserting response: " + err.Error())
 	}
@@ -66,8 +69,9 @@ func NewResponseWithOptions(elementID int64, userID int64, optionIDs []int64, db
 		ElementID: elementID,
 		UserID:    userID,
 		OptionIDs: optionIDs,
+		CreatedAt: time.Now(),
 	}
-	result, err := db.Exec("INSERT INTO responses (elementID, userID) VALUES (?, ?)", elementID, userID)
+	result, err := db.Exec("INSERT INTO responses (elementID, userID, createdAt) VALUES (?, ?, ?)", elementID, userID, resp.CreatedAt)
 	if err != nil {
 		return nil, errors.New("error inserting response: " + err.Error())
 	}

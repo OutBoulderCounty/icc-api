@@ -4,6 +4,7 @@ import (
 	"api/env"
 	"api/forms/responses"
 	"testing"
+	"time"
 )
 
 const pathToDotEnv = "../../.env"
@@ -100,6 +101,7 @@ func TestNewResponseWithOptions(t *testing.T) {
 	}
 	userID := int64(1)
 
+	currentTime := time.Now()
 	response, err := responses.NewResponseWithOptions(elementID, userID, optionIDs, e.DB)
 	if err != nil {
 		t.Error("failed to create response with options: " + err.Error())
@@ -113,6 +115,11 @@ func TestNewResponseWithOptions(t *testing.T) {
 	}
 	if response.UserID != userID {
 		t.Error("expected UserID to be", userID, "; got", response.UserID)
+	}
+	currentMinute := currentTime.Round(time.Minute)
+	createdMinute := response.CreatedAt.Round(time.Minute)
+	if createdMinute != currentMinute {
+		t.Error("expected CreatedAt to be", currentMinute, "; got", createdMinute)
 	}
 	// TODO: test that the response has the correct options
 	if len(response.OptionIDs) != len(optionIDs) {
