@@ -102,6 +102,16 @@ func NewResponseWithOptions(elementID int64, userID int64, optionIDs []int64, db
 	return resp, nil
 }
 
+func GetResponse(id int64, db *sql.DB) (*Response, error) {
+	selectResponse := "SELECT id, elementID, userID, value, createdAt FROM responses WHERE id = ?"
+	var resp Response
+	err := db.QueryRow(selectResponse, id).Scan(&resp.ID, &resp.ElementID, &resp.UserID, &resp.Value, &resp.CreatedAt)
+	if err != nil {
+		return nil, errors.New("error selecting response: " + err.Error())
+	}
+	return &resp, nil
+}
+
 func validateElement(elementID int64, db *sql.DB) error {
 	selectElement := "SELECT id FROM elements WHERE id = ?"
 	var selectedElement int64

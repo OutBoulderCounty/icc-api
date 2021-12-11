@@ -145,3 +145,31 @@ func TestNewResponseWithInvalidOptions(t *testing.T) {
 		t.Error("expected error when creating response with invalid option")
 	}
 }
+
+func TestGetResponse(t *testing.T) {
+	e := env.TestSetup(t, true, pathToDotEnv)
+	selectResponse := "select id from responses;"
+	var responseID int64
+	err := e.DB.QueryRow(selectResponse).Scan(&responseID)
+	if err != nil {
+		t.Error("failed to get response ID: " + err.Error())
+		return
+	}
+	response, err := responses.GetResponse(responseID, e.DB)
+	if err != nil {
+		t.Error("failed to get response: " + err.Error())
+		return
+	}
+	if response.ID != responseID {
+		t.Error("expected response ID to be", responseID, "; got", response.ID)
+	}
+	if response.ElementID == 0 {
+		t.Error("expected ElementID to be set")
+	}
+	if response.UserID == 0 {
+		t.Error("expected UserID to be set")
+	}
+	if response.CreatedAt.IsZero() {
+		t.Error("expected CreatedAt to be set")
+	}
+}
