@@ -119,3 +119,22 @@ func TestNewResponseWithOptions(t *testing.T) {
 		t.Error("expected OptionIDs to be", optionIDs, "; got", response.OptionIDs)
 	}
 }
+
+func TestNewResponseWithInvalidOptions(t *testing.T) {
+	e := env.TestSetup(t, true, pathToDotEnv)
+	// generate an invalid option ID
+	selectMaxOptionID := "select max(id) from options;"
+	var maxOptionID int64
+	err := e.DB.QueryRow(selectMaxOptionID).Scan(&maxOptionID)
+	if err != nil {
+		t.Error("failed to get max option ID: " + err.Error())
+		return
+	}
+	optionID := maxOptionID + 1000000
+	elementID := int64(2)
+	userID := int64(1)
+	_, err = responses.NewResponseWithOptions(elementID, userID, []int64{optionID}, e.DB)
+	if err == nil {
+		t.Error("expected error when creating response with invalid option")
+	}
+}
