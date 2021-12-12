@@ -52,6 +52,5 @@ func Authenticate(token string, e *env.Env) (sessionToken string, err error) {
 	if user == nil {
 		return "", errors.New("User not found. Stytch user ID " + resp.UserID)
 	}
-	fmt.Println("user email: " + user.Email)
 	return resp.SessionToken, nil
 }

@@ -293,10 +293,10 @@ func TestRoutes(t *testing.T) {
 		t.Error("Failed to create get responses request: " + err.Error())
 	}
 	getResponsesReq.Header.Set("Authorization", users.TestSessionToken)
+	type getResponsesResp struct {
+		Responses []responses.Response `json:"responses"`
+	}
 	getResponsesTest := func(t *testing.T, bdy []byte) bool {
-		type getResponsesResp struct {
-			Responses []responses.Response `json:"responses"`
-		}
 		var resp getResponsesResp
 		err := json.Unmarshal(bdy, &resp)
 		if err != nil {
@@ -339,6 +339,25 @@ func TestRoutes(t *testing.T) {
 		return true
 	}
 
+	getResponsesByFormReq, err := http.NewRequest("GET", "/form/1/responses", nil)
+	if err != nil {
+		t.Error("Failed to create get form responses request: " + err.Error())
+	}
+	getResponsesByFormReq.Header.Set("Authorization", users.TestSessionToken)
+	getResponsesByFormTest := func(t *testing.T, bdy []byte) bool {
+		var resp getResponsesResp
+		err := json.Unmarshal(bdy, &resp)
+		if err != nil {
+			t.Error("Failed to unmarshal response body: " + err.Error())
+			return false
+		}
+		if len(resp.Responses) == 0 {
+			t.Error("No responses found")
+			return false
+		}
+		return true
+	}
+
 	testCases := []struct {
 		name     string
 		request  *http.Request
@@ -357,6 +376,7 @@ func TestRoutes(t *testing.T) {
 		{name: "GetResponseWithIncorrectUser", request: getResponseWithIncorrectUserReq, wantCode: http.StatusUnauthorized},
 		{name: "GetResponses", request: getResponsesReq, wantCode: http.StatusOK, testBody: getResponsesTest},
 		{name: "GetFormResponses", request: getFormResponsesReq, wantCode: http.StatusOK, testBody: getFormResponsesTest},
+		{name: "GetResponsesByForm", request: getResponsesByFormReq, wantCode: http.StatusOK, testBody: getResponsesByFormTest},
 	}
 
 	for _, tc := range testCases {

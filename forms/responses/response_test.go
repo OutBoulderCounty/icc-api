@@ -243,3 +243,37 @@ func TestGetFormResponsesByToken(t *testing.T) {
 		}
 	}
 }
+
+func TestGetResponsesByForm(t *testing.T) {
+	e := env.TestSetup(t, true, pathToDotEnv)
+	formID := int64(1)
+	responses, err := responses.GetResponsesByFormAndToken(formID, users.TestSessionToken, e)
+	if err != nil {
+		t.Error("failed to get responses: " + err.Error())
+		return
+	}
+	if len(responses) == 0 {
+		t.Error("expected at least one response")
+	}
+	user, err := users.GetUserBySession(users.TestSessionToken, e)
+	if err != nil {
+		t.Error("failed to get user: " + err.Error())
+		return
+	}
+	for _, response := range responses {
+		// check if any returned element IDs are not part of the form
+		selectFormID := "select formID from elements where id = ?"
+		var elementFormID int64
+		err := e.DB.QueryRow(selectFormID, response.ElementID).Scan(&elementFormID)
+		if err != nil {
+			t.Error("failed to get form ID: " + err.Error())
+			return
+		}
+		if elementFormID != formID {
+			t.Error("expected response element to have form ID", formID, "; got", elementFormID)
+		}
+		if response.UserID != user.ID {
+			t.Error("expected response to have user ID", user.ID, "; got", response.UserID)
+		}
+	}
+}

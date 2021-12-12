@@ -158,6 +158,26 @@ func setup() *env.Env {
 		}
 		c.JSON(http.StatusOK, gin.H{"form": form})
 	})
+	authorizedForm.GET("/:id/responses", func(c *gin.Context) {
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		token := c.Request.Header.Get("Authorization")
+		resps, err := responses.GetResponsesByFormAndToken(id, token, environment)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"responses": resps,
+		})
+	})
 
 	authorizedResponse := environment.Router.Group("/response", authRequired(environment))
 	authorizedResponse.POST("", func(c *gin.Context) {
