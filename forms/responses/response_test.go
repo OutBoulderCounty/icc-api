@@ -3,6 +3,7 @@ package responses_test
 import (
 	"api/env"
 	"api/forms/responses"
+	"api/users"
 	"testing"
 	"time"
 )
@@ -143,5 +144,136 @@ func TestNewResponseWithInvalidOptions(t *testing.T) {
 	_, err = responses.NewResponseWithOptions(elementID, userID, []int64{optionID}, e.DB)
 	if err == nil {
 		t.Error("expected error when creating response with invalid option")
+	}
+}
+
+func TestGetResponse(t *testing.T) {
+	e := env.TestSetup(t, true, pathToDotEnv)
+	selectResponse := "select id from responses;"
+	var responseID int64
+	err := e.DB.QueryRow(selectResponse).Scan(&responseID)
+	if err != nil {
+		t.Error("failed to get response ID: " + err.Error())
+		return
+	}
+	response, err := responses.GetResponse(responseID, e.DB)
+	if err != nil {
+		t.Error("failed to get response: " + err.Error())
+		return
+	}
+	if response.ID != responseID {
+		t.Error("expected response ID to be", responseID, "; got", response.ID)
+	}
+	if response.ElementID == 0 {
+		t.Error("expected ElementID to be set")
+	}
+	if response.UserID == 0 {
+		t.Error("expected UserID to be set")
+	}
+	if response.CreatedAt.IsZero() {
+		t.Error("expected CreatedAt to be set")
+	}
+}
+
+func TestGetResponseWithEmptyValue(t *testing.T) {
+	e := env.TestSetup(t, true, pathToDotEnv)
+	selectResponse := "select id from responses where value is null;"
+	var responseID int64
+	err := e.DB.QueryRow(selectResponse).Scan(&responseID)
+	if err != nil {
+		t.Error("failed to get response ID: " + err.Error())
+		return
+	}
+	response, err := responses.GetResponse(responseID, e.DB)
+	if err != nil {
+		t.Error("failed to get response: " + err.Error())
+		return
+	}
+	if response.Value != "" {
+		t.Error("expected Value to be empty; got", response.Value)
+	}
+}
+
+func TestGetResponseWithOptions(t *testing.T) {
+	e := env.TestSetup(t, true, pathToDotEnv)
+	selectResponse := "select id from responses where id in (select distinct responseID from response_options);"
+	var responseID int64
+	err := e.DB.QueryRow(selectResponse).Scan(&responseID)
+	if err != nil {
+		t.Error("failed to get response ID: " + err.Error())
+		return
+	}
+	response, err := responses.GetResponse(responseID, e.DB)
+	if err != nil {
+		t.Error("failed to get response: " + err.Error())
+		return
+	}
+	if response.OptionIDs == nil {
+		t.Error("expected OptionIDs to be set")
+	}
+}
+
+func TestGetResponses(t *testing.T) {
+	e := env.TestSetup(t, true, pathToDotEnv)
+	resps, err := responses.GetResponses(e.DB)
+	if err != nil {
+		t.Error("failed to get responses: " + err.Error())
+		return
+	}
+	if len(resps) == 0 {
+		t.Error("expected at least one response")
+	}
+}
+
+func TestGetFormResponsesByToken(t *testing.T) {
+	e := env.TestSetup(t, true, pathToDotEnv)
+	token := users.TestSessionToken
+	responses, err := responses.GetFormResponsesByToken(token, e)
+	if err != nil {
+		t.Error("failed to get form responses: " + err.Error())
+		return
+	}
+	if len(responses) == 0 {
+		t.Error("expected form responses to be returned")
+	}
+	// each response should have a form name
+	for _, response := range responses {
+		if response.FormName == "" {
+			t.Error("expected form name to be set")
+		}
+	}
+}
+
+func TestGetResponsesByForm(t *testing.T) {
+	e := env.TestSetup(t, true, pathToDotEnv)
+	formID := int64(1)
+	responses, err := responses.GetResponsesByFormAndToken(formID, users.TestSessionToken, e)
+	if err != nil {
+		t.Error("failed to get responses: " + err.Error())
+		return
+	}
+	if len(responses) == 0 {
+		t.Error("expected at least one response")
+	}
+	user, err := users.GetUserBySession(users.TestSessionToken, e)
+	if err != nil {
+		t.Error("failed to get user: " + err.Error())
+		return
+	}
+	for _, response := range responses {
+		// check if any returned element IDs are not part of the form
+		selectFormID := "select formID from elements where id = ?"
+		var elementFormID int64
+		err := e.DB.QueryRow(selectFormID, response.ElementID).Scan(&elementFormID)
+		if err != nil {
+			t.Error("failed to get form ID: " + err.Error())
+			return
+		}
+		if elementFormID != formID {
+			t.Error("expected response element to have form ID", formID, "; got", elementFormID)
+		}
+		if response.UserID != user.ID {
+			t.Error("expected response to have user ID", user.ID, "; got", response.UserID)
+		}
 	}
 }

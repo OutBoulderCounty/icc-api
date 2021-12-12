@@ -56,8 +56,6 @@ func (env Env) SqlExecute(query string) (sql.Result, error) {
 }
 
 func Connect(name envName) (*Env, error) {
-	fmt.Println("app env:", name)
-
 	env := Env{
 		Name: name,
 	}
@@ -99,13 +97,12 @@ func Connect(name envName) (*Env, error) {
 			}
 		}
 
-		db, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?tls=true", c.User, c.Password, c.Host, c.Port, c.Name))
+		db, err = sql.Open("mysql", fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?tls=true&parseTime=true", c.User, c.Password, c.Host, c.Port, c.Name))
 		if err != nil {
 			return nil, err
 		}
 	} else {
-		fmt.Println("Connecting to dev database")
-		db, err = sql.Open("mysql", "tcp(localhost:3306)/")
+		db, err = sql.Open("mysql", "tcp(localhost:3306)/?parseTime=true")
 		if err != nil {
 			return nil, err
 		}

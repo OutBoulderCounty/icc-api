@@ -230,11 +230,138 @@ func TestRoutes(t *testing.T) {
 		return true
 	}
 
+	testUser, err := users.GetUserBySession(users.TestSessionToken, env)
+	if err != nil {
+		t.Error("Failed to get user ID: " + err.Error())
+		return
+	}
+
+	// get a response ID with a non-zero createdAt timestamp
+	var responseID int64
+	err = env.DB.QueryRow("SELECT id FROM responses WHERE createdAt > 0 AND userID = ?", testUser.ID).Scan(&responseID)
+	if err != nil {
+		t.Error("Failed to get response ID: " + err.Error())
+		return
+	}
+	getResponseReq, err := http.NewRequest("GET", fmt.Sprintf("/response/%d", responseID), nil)
+	if err != nil {
+		t.Error("Failed to create get response request: " + err.Error())
+	}
+	getResponseReq.Header.Set("Authorization", users.TestSessionToken)
+	getResponseTest := func(t *testing.T, bdy []byte) bool {
+		type getResponseResp struct {
+			Response responses.Response `json:"response"`
+		}
+		var resp getResponseResp
+		err := json.Unmarshal(bdy, &resp)
+		if err != nil {
+			t.Error("Failed to unmarshal response body: " + err.Error())
+			return false
+		}
+		if resp.Response.ID != responseID {
+			t.Error("Response ID is incorrect")
+			return false
+		}
+		if resp.Response.ElementID == 0 {
+			t.Error("Response element ID is not set")
+			return false
+		}
+		if resp.Response.CreatedAt.IsZero() {
+			t.Error("Response created at timestamp is not set")
+			return false
+		}
+		return true
+	}
+
+	// test a response with a user that doesn't own the response
+	var userResponseID int64
+	selectResponse := "SELECT id FROM responses WHERE userID != ? AND createdAt > 0"
+	err = env.DB.QueryRow(selectResponse, testUser.ID).Scan(&userResponseID)
+	if err != nil {
+		t.Error("Failed to get response ID: " + err.Error())
+		return
+	}
+	// test for unauthorized response when user does not own the form response
+	getResponseWithIncorrectUserReq, err := http.NewRequest("GET", fmt.Sprintf("/response/%d", userResponseID), nil)
+	if err != nil {
+		t.Error("Failed to create get response request: " + err.Error())
+	}
+	getResponseWithIncorrectUserReq.Header.Set("Authorization", users.TestSessionToken)
+
+	getResponsesReq, err := http.NewRequest("GET", "/responses", nil)
+	if err != nil {
+		t.Error("Failed to create get responses request: " + err.Error())
+	}
+	getResponsesReq.Header.Set("Authorization", users.TestSessionToken)
+	type getResponsesResp struct {
+		Responses []responses.Response `json:"responses"`
+	}
+	getResponsesTest := func(t *testing.T, bdy []byte) bool {
+		var resp getResponsesResp
+		err := json.Unmarshal(bdy, &resp)
+		if err != nil {
+			t.Error("Failed to unmarshal response body: " + err.Error())
+			return false
+		}
+		if len(resp.Responses) == 0 {
+			t.Error("Response is empty")
+			return false
+		}
+		// ensure only this user's responses are included
+		for _, r := range resp.Responses {
+			if r.UserID != testUser.ID {
+				t.Error("Another user's response included in response list!")
+				return false
+			}
+		}
+		return true
+	}
+
+	getFormResponsesReq, err := http.NewRequest("GET", "/forms/responses", nil)
+	if err != nil {
+		t.Error("Failed to create get form responses request: " + err.Error())
+	}
+	getFormResponsesReq.Header.Set("Authorization", users.TestSessionToken)
+	getFormResponsesTest := func(t *testing.T, bdy []byte) bool {
+		type getFormResponsesResp struct {
+			Responses []responses.FormResponse `json:"form_responses"`
+		}
+		var resp getFormResponsesResp
+		err := json.Unmarshal(bdy, &resp)
+		if err != nil {
+			t.Error("Failed to unmarshal response body: " + err.Error())
+			return false
+		}
+		if len(resp.Responses) == 0 {
+			t.Error("No responses found")
+			return false
+		}
+		return true
+	}
+
+	getResponsesByFormReq, err := http.NewRequest("GET", "/form/1/responses", nil)
+	if err != nil {
+		t.Error("Failed to create get form responses request: " + err.Error())
+	}
+	getResponsesByFormReq.Header.Set("Authorization", users.TestSessionToken)
+	getResponsesByFormTest := func(t *testing.T, bdy []byte) bool {
+		var resp getResponsesResp
+		err := json.Unmarshal(bdy, &resp)
+		if err != nil {
+			t.Error("Failed to unmarshal response body: " + err.Error())
+			return false
+		}
+		if len(resp.Responses) == 0 {
+			t.Error("No responses found")
+			return false
+		}
+		return true
+	}
+
 	testCases := []struct {
 		name     string
 		request  *http.Request
 		wantCode int
-		wantBody *string
 		testBody func(*testing.T, []byte) bool
 	}{
 		{name: "ProviderLogin", request: providerLoginReq, wantCode: http.StatusOK},
@@ -245,6 +372,11 @@ func TestRoutes(t *testing.T) {
 		{name: "GetUser", request: getUserReq, wantCode: http.StatusOK},
 		{name: "NewResponse", request: newResponseReq, wantCode: http.StatusOK, testBody: newResponseTest},
 		{name: "NewResponseWithOptions", request: newResponseWithOptionsReq, wantCode: http.StatusOK, testBody: newResponseWithOptionsTest},
+		{name: "GetResponse", request: getResponseReq, wantCode: http.StatusOK, testBody: getResponseTest},
+		{name: "GetResponseWithIncorrectUser", request: getResponseWithIncorrectUserReq, wantCode: http.StatusUnauthorized},
+		{name: "GetResponses", request: getResponsesReq, wantCode: http.StatusOK, testBody: getResponsesTest},
+		{name: "GetFormResponses", request: getFormResponsesReq, wantCode: http.StatusOK, testBody: getFormResponsesTest},
+		{name: "GetResponsesByForm", request: getResponsesByFormReq, wantCode: http.StatusOK, testBody: getResponsesByFormTest},
 	}
 
 	for _, tc := range testCases {
@@ -261,12 +393,6 @@ func TestRoutes(t *testing.T) {
 					return
 				}
 				t.Error("body test failed")
-			}
-			if tc.wantBody == nil {
-				return
-			}
-			if w.Body.String() != *tc.wantBody {
-				t.Errorf("got body %s; want %s", w.Body.String(), *tc.wantBody)
 			}
 		})
 	}
