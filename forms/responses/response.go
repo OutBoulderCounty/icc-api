@@ -27,6 +27,7 @@ func (r *sqlResponse) ToResponse() *Response {
 		ElementID: r.ElementID,
 		UserID:    r.UserID,
 		Value:     r.Value.String,
+		OptionIDs: r.OptionIDs,
 		CreatedAt: r.CreatedAt,
 	}
 	return resp
@@ -124,6 +125,20 @@ func GetResponse(id int64, db *sql.DB) (*Response, error) {
 	err := db.QueryRow(selectResponse, id).Scan(&resp.ID, &resp.ElementID, &resp.UserID, &resp.Value, &resp.CreatedAt)
 	if err != nil {
 		return nil, errors.New("error selecting response: " + err.Error())
+	}
+	selectOptions := "SELECT optionID FROM response_options WHERE responseID = ?"
+	rows, err := db.Query(selectOptions, resp.ID)
+	if err != nil {
+		return nil, errors.New("error selecting response options: " + err.Error())
+	}
+	defer rows.Close()
+	for rows.Next() {
+		var optionID int64
+		err := rows.Scan(&optionID)
+		if err != nil {
+			return nil, errors.New("error scanning response options: " + err.Error())
+		}
+		resp.OptionIDs = append(resp.OptionIDs, optionID)
 	}
 	return resp.ToResponse(), nil
 }

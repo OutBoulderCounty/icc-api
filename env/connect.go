@@ -56,8 +56,6 @@ func (env Env) SqlExecute(query string) (sql.Result, error) {
 }
 
 func Connect(name envName) (*Env, error) {
-	fmt.Println("app env:", name)
-
 	env := Env{
 		Name: name,
 	}
@@ -104,7 +102,6 @@ func Connect(name envName) (*Env, error) {
 			return nil, err
 		}
 	} else {
-		fmt.Println("Connecting to dev database")
 		db, err = sql.Open("mysql", "tcp(localhost:3306)/?parseTime=true")
 		if err != nil {
 			return nil, err
