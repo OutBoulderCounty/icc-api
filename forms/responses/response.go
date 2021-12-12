@@ -8,12 +8,28 @@ import (
 )
 
 type Response struct {
-	ID        int64
-	ElementID int64 `json:"element_id"`
-	UserID    int64
-	Value     string  `json:"value"`
-	OptionIDs []int64 `json:"option_ids"`
-	CreatedAt time.Time
+	ID        int64     `json:"id"`
+	ElementID int64     `json:"element_id"`
+	UserID    int64     `json:"user_id"`
+	Value     string    `json:"value"`
+	OptionIDs []int64   `json:"option_ids"`
+	CreatedAt time.Time `json:"created_at"`
+}
+
+type sqlResponse struct {
+	Response
+	Value sql.NullString
+}
+
+func (r *sqlResponse) ToResponse() *Response {
+	resp := &Response{
+		ID:        r.ID,
+		ElementID: r.ElementID,
+		UserID:    r.UserID,
+		Value:     r.Value.String,
+		CreatedAt: r.CreatedAt,
+	}
+	return resp
 }
 
 func NewResponse(elementID int64, userID int64, value string, db *sql.DB) (*Response, error) {
@@ -104,12 +120,12 @@ func NewResponseWithOptions(elementID int64, userID int64, optionIDs []int64, db
 
 func GetResponse(id int64, db *sql.DB) (*Response, error) {
 	selectResponse := "SELECT id, elementID, userID, value, createdAt FROM responses WHERE id = ?"
-	var resp Response
+	var resp sqlResponse
 	err := db.QueryRow(selectResponse, id).Scan(&resp.ID, &resp.ElementID, &resp.UserID, &resp.Value, &resp.CreatedAt)
 	if err != nil {
 		return nil, errors.New("error selecting response: " + err.Error())
 	}
-	return &resp, nil
+	return resp.ToResponse(), nil
 }
 
 func validateElement(elementID int64, db *sql.DB) error {

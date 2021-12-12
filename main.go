@@ -31,7 +31,6 @@ import (
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
-	"github.com/stytchauth/stytch-go/v3/stytch"
 )
 
 //go:generate swagger generate spec -o swagger.json
@@ -178,6 +177,36 @@ func setup() *env.Env {
 		}
 		c.JSON(http.StatusOK, gin.H{"response": resp})
 	})
+	authorizedResponse.GET("/:id", func(c *gin.Context) {
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		response, err := responses.GetResponse(id, environment.DB)
+		if err != nil {
+			panic(err)
+		}
+		// TODO: check user owns the response
+		userID, userIDExists := c.Get("user_id")
+		if userIDExists {
+			if userID != response.UserID {
+				c.JSON(http.StatusUnauthorized, gin.H{
+					"error": "User does not own response",
+				})
+				return
+			}
+		} else {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "Unable to get user ID from context",
+			})
+			return
+		}
+
+		c.JSON(http.StatusOK, gin.H{"response": response})
+	})
 
 	return environment
 }
@@ -198,21 +227,16 @@ func authRequired(environment *env.Env) gin.HandlerFunc {
 			c.Abort()
 			return
 		}
-		body := stytch.SessionsAuthenticateParams{
-			SessionToken:           token,
-			SessionDurationMinutes: 10080,
-		}
-		resp, err := environment.Stytch.Sessions.Authenticate(&body)
+		user, err := users.GetUserBySession(token, environment)
 		if err != nil {
-			fmt.Println("Failed to authorize: " + err.Error())
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error": err.Error(),
 			})
 			c.Abort()
 			return
 		}
-		fmt.Println("Authorized!", resp.Session.UserID)
-		c.Set("stytch_user_id", resp.Session.UserID)
+		c.Set("user_id", user.ID)
+		c.Set("stytch_user_id", user.StytchUserID)
 		c.Next()
 	}
 }

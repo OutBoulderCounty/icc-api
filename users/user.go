@@ -115,7 +115,8 @@ func GetUserBySession(sessionToken string, e *env.Env) (*User, error) {
 	}
 	// get user id from session token
 	params := &stytch.SessionsAuthenticateParams{
-		SessionToken: sessionToken,
+		SessionToken:           sessionToken,
+		SessionDurationMinutes: 10080,
 	}
 	resp, err := e.Stytch.Sessions.Authenticate(params)
 	if err != nil {

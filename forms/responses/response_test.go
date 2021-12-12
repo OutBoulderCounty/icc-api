@@ -173,3 +173,22 @@ func TestGetResponse(t *testing.T) {
 		t.Error("expected CreatedAt to be set")
 	}
 }
+
+func TestGetResponseWithEmptyValue(t *testing.T) {
+	e := env.TestSetup(t, true, pathToDotEnv)
+	selectResponse := "select id from responses where value is null;"
+	var responseID int64
+	err := e.DB.QueryRow(selectResponse).Scan(&responseID)
+	if err != nil {
+		t.Error("failed to get response ID: " + err.Error())
+		return
+	}
+	response, err := responses.GetResponse(responseID, e.DB)
+	if err != nil {
+		t.Error("failed to get response: " + err.Error())
+		return
+	}
+	if response.Value != "" {
+		t.Error("expected Value to be empty; got", response.Value)
+	}
+}
