@@ -229,6 +229,27 @@ func setup() *env.Env {
 		c.JSON(http.StatusOK, gin.H{"response": response})
 	})
 
+	authorizedResponses := environment.Router.Group("/responses", authRequired(environment))
+	authorizedResponses.GET("", func(c *gin.Context) {
+		resps, err := responses.GetResponses(environment.DB)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		userID, userIDExists := c.Get("user_id")
+		var userResps []*responses.Response
+		if userIDExists {
+			for _, resp := range resps {
+				if resp.UserID == userID {
+					userResps = append(userResps, resp)
+				}
+			}
+		}
+		c.JSON(http.StatusOK, gin.H{"responses": userResps})
+	})
+
 	return environment
 }
 

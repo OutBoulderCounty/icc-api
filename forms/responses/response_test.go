@@ -213,6 +213,18 @@ func TestGetResponseWithOptions(t *testing.T) {
 	}
 }
 
+func TestGetResponses(t *testing.T) {
+	e := env.TestSetup(t, true, pathToDotEnv)
+	resps, err := responses.GetResponses(e.DB)
+	if err != nil {
+		t.Error("failed to get responses: " + err.Error())
+		return
+	}
+	if len(resps) == 0 {
+		t.Error("expected at least one response")
+	}
+}
+
 func TestGetFormResponsesByToken(t *testing.T) {
 	e := env.TestSetup(t, true, pathToDotEnv)
 	token := users.TestSessionToken

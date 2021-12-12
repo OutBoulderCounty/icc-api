@@ -134,21 +134,53 @@ func GetResponse(id int64, db *sql.DB) (*Response, error) {
 	if err != nil {
 		return nil, errors.New("error selecting response: " + err.Error())
 	}
+	resp.OptionIDs, err = getOptionsForResponse(id, db)
+	if err != nil {
+		return nil, errors.New("error getting response options: " + err.Error())
+	}
+	return resp.ToResponse(), nil
+}
+
+func GetResponses(db *sql.DB) ([]*Response, error) {
+	selectResponses := "SELECT id, elementID, userID, value, createdAt FROM responses"
+	rows, err := db.Query(selectResponses)
+	if err != nil {
+		return nil, errors.New("error selecting responses: " + err.Error())
+	}
+	defer rows.Close()
+	var responses []*Response
+	for rows.Next() {
+		var resp sqlResponse
+		err := rows.Scan(&resp.ID, &resp.ElementID, &resp.UserID, &resp.Value, &resp.CreatedAt)
+		if err != nil {
+			return nil, errors.New("error scanning responses: " + err.Error())
+		}
+		resp.OptionIDs, err = getOptionsForResponse(resp.ID, db)
+		if err != nil {
+			return nil, errors.New("error getting response options: " + err.Error())
+		}
+		responses = append(responses, resp.ToResponse())
+	}
+	return responses, nil
+}
+
+func getOptionsForResponse(responseID int64, db *sql.DB) ([]int64, error) {
 	selectOptions := "SELECT optionID FROM response_options WHERE responseID = ?"
-	rows, err := db.Query(selectOptions, resp.ID)
+	rows, err := db.Query(selectOptions, responseID)
 	if err != nil {
 		return nil, errors.New("error selecting response options: " + err.Error())
 	}
 	defer rows.Close()
+	var optionIDs []int64
 	for rows.Next() {
 		var optionID int64
 		err := rows.Scan(&optionID)
 		if err != nil {
-			return nil, errors.New("error scanning response options: " + err.Error())
+			return nil, errors.New("error scanning response option: " + err.Error())
 		}
-		resp.OptionIDs = append(resp.OptionIDs, optionID)
+		optionIDs = append(optionIDs, optionID)
 	}
-	return resp.ToResponse(), nil
+	return optionIDs, nil
 }
 
 func validateElement(elementID int64, db *sql.DB) error {
