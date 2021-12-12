@@ -3,6 +3,7 @@ package responses_test
 import (
 	"api/env"
 	"api/forms/responses"
+	"api/users"
 	"testing"
 	"time"
 )
@@ -209,5 +210,18 @@ func TestGetResponseWithOptions(t *testing.T) {
 	}
 	if response.OptionIDs == nil {
 		t.Error("expected OptionIDs to be set")
+	}
+}
+
+func TestGetFormResponsesByToken(t *testing.T) {
+	e := env.TestSetup(t, true, pathToDotEnv)
+	token := users.TestSessionToken
+	responses, err := responses.GetFormResponsesByToken(token, e)
+	if err != nil {
+		t.Error("failed to get form responses: " + err.Error())
+		return
+	}
+	if len(responses) == 0 {
+		t.Error("expected form responses to be returned")
 	}
 }

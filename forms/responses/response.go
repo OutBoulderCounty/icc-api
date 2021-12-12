@@ -1,6 +1,8 @@
 package responses
 
 import (
+	"api/env"
+	"api/users"
 	"database/sql"
 	"errors"
 	"fmt"
@@ -31,6 +33,12 @@ func (r *sqlResponse) ToResponse() *Response {
 		CreatedAt: r.CreatedAt,
 	}
 	return resp
+}
+
+type FormResponse struct {
+	FormID         int64     `json:"form_id"`
+	FormName       string    `json:"form_name"`
+	LastResponseAt time.Time `json:"last_responded_time"`
 }
 
 func NewResponse(elementID int64, userID int64, value string, db *sql.DB) (*Response, error) {
@@ -167,4 +175,27 @@ func validateUser(userID int64, db *sql.DB) error {
 		return fmt.Errorf("user %v not found", userID)
 	}
 	return nil
+}
+
+func GetFormResponsesByToken(token string, e *env.Env) ([]*FormResponse, error) {
+	user, err := users.GetUserBySession(token, e)
+	if err != nil {
+		return nil, errors.New("error getting user: " + err.Error())
+	}
+	selectFormResps := "select f.id, max(r.createdAt) from forms f, responses r where f.id = (select distinct e.formID from elements e where r.elementID = e.id) and userID = ? group by f.id"
+	rows, err := e.DB.Query(selectFormResps, user.ID)
+	if err != nil {
+		return nil, errors.New("error selecting responses: " + err.Error())
+	}
+	defer rows.Close()
+	var responses []*FormResponse
+	for rows.Next() {
+		var resp FormResponse
+		err := rows.Scan(&resp.FormID, &resp.LastResponseAt)
+		if err != nil {
+			return nil, errors.New("error scanning form response: " + err.Error())
+		}
+		responses = append(responses, &resp)
+	}
+	return responses, nil
 }
