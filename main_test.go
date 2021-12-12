@@ -274,7 +274,6 @@ func TestRoutes(t *testing.T) {
 	}
 
 	// test a response with a user that doesn't own the response
-
 	var userResponseID int64
 	selectResponse := "SELECT id FROM responses WHERE userID != ? AND createdAt > 0"
 	err = env.DB.QueryRow(selectResponse, testUser.ID).Scan(&userResponseID)
@@ -288,6 +287,28 @@ func TestRoutes(t *testing.T) {
 		t.Error("Failed to create get response request: " + err.Error())
 	}
 	getResponseWithIncorrectUserReq.Header.Set("Authorization", users.TestSessionToken)
+
+	getFormResponsesReq, err := http.NewRequest("GET", "/forms/responses", nil)
+	if err != nil {
+		t.Error("Failed to create get form responses request: " + err.Error())
+	}
+	getFormResponsesReq.Header.Set("Authorization", users.TestSessionToken)
+	getFormResponsesTest := func(t *testing.T, bdy []byte) bool {
+		type getFormResponsesResp struct {
+			Responses []responses.FormResponse `json:"form_responses"`
+		}
+		var resp getFormResponsesResp
+		err := json.Unmarshal(bdy, &resp)
+		if err != nil {
+			t.Error("Failed to unmarshal response body: " + err.Error())
+			return false
+		}
+		if len(resp.Responses) == 0 {
+			t.Error("No responses found")
+			return false
+		}
+		return true
+	}
 
 	testCases := []struct {
 		name     string
@@ -305,6 +326,7 @@ func TestRoutes(t *testing.T) {
 		{name: "NewResponseWithOptions", request: newResponseWithOptionsReq, wantCode: http.StatusOK, testBody: newResponseWithOptionsTest},
 		{name: "GetResponse", request: getResponseReq, wantCode: http.StatusOK, testBody: getResponseTest},
 		{name: "GetResponseWithIncorrectUser", request: getResponseWithIncorrectUserReq, wantCode: http.StatusUnauthorized},
+		{name: "GetFormResponses", request: getFormResponsesReq, wantCode: http.StatusOK, testBody: getFormResponsesTest},
 	}
 
 	for _, tc := range testCases {

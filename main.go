@@ -114,14 +114,29 @@ func setup() *env.Env {
 	})
 
 	authorizedForms := environment.Router.Group("/forms", authRequired(environment))
-
 	authorizedForms.GET("", func(c *gin.Context) {
 		foundForms, err := forms.GetForms(environment.DB)
 		if err != nil {
-			panic(err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
 		}
 		c.JSON(http.StatusOK, gin.H{
 			"forms": foundForms,
+		})
+	})
+	authorizedForms.GET("/responses", func(c *gin.Context) {
+		token := c.Request.Header.Get("Authorization")
+		formResps, err := responses.GetFormResponsesByToken(token, environment)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"form_responses": formResps,
 		})
 	})
 
@@ -136,7 +151,10 @@ func setup() *env.Env {
 		}
 		form, err := forms.GetForm(id, environment.DB)
 		if err != nil {
-			panic(err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
 		}
 		c.JSON(http.StatusOK, gin.H{"form": form})
 	})
@@ -187,9 +205,12 @@ func setup() *env.Env {
 		}
 		response, err := responses.GetResponse(id, environment.DB)
 		if err != nil {
-			panic(err)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
 		}
-		// TODO: check user owns the response
+		// check user owns the response
 		userID, userIDExists := c.Get("user_id")
 		if userIDExists {
 			if userID != response.UserID {

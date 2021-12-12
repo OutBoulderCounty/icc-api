@@ -182,7 +182,7 @@ func GetFormResponsesByToken(token string, e *env.Env) ([]*FormResponse, error) 
 	if err != nil {
 		return nil, errors.New("error getting user: " + err.Error())
 	}
-	selectFormResps := "select f.id, max(r.createdAt) from forms f, responses r where f.id = (select distinct e.formID from elements e where r.elementID = e.id) and userID = ? group by f.id"
+	selectFormResps := "select f.id, f.name, max(r.createdAt) from forms f, responses r where f.id = (select distinct e.formID from elements e where r.elementID = e.id) and userID = ? group by f.id"
 	rows, err := e.DB.Query(selectFormResps, user.ID)
 	if err != nil {
 		return nil, errors.New("error selecting responses: " + err.Error())
@@ -191,7 +191,7 @@ func GetFormResponsesByToken(token string, e *env.Env) ([]*FormResponse, error) 
 	var responses []*FormResponse
 	for rows.Next() {
 		var resp FormResponse
-		err := rows.Scan(&resp.FormID, &resp.LastResponseAt)
+		err := rows.Scan(&resp.FormID, &resp.FormName, &resp.LastResponseAt)
 		if err != nil {
 			return nil, errors.New("error scanning form response: " + err.Error())
 		}

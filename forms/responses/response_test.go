@@ -224,4 +224,10 @@ func TestGetFormResponsesByToken(t *testing.T) {
 	if len(responses) == 0 {
 		t.Error("expected form responses to be returned")
 	}
+	// each response should have a form name
+	for _, response := range responses {
+		if response.FormName == "" {
+			t.Error("expected form name to be set")
+		}
+	}
 }
