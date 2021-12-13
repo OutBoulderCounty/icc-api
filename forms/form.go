@@ -16,7 +16,7 @@ type Form struct {
 
 type Element struct {
 	ID       int64  `json:"id"`
-	FormID   int64  `json:"formID"`
+	FormID   int64  `json:"form_id"`
 	Label    string `json:"label"`
 	Type     string `json:"type"`
 	Position int    `json:"position"` // index
@@ -28,7 +28,7 @@ type Element struct {
 
 type Option struct {
 	ID        int64  `json:"id"`
-	ElementID int64  `json:"elementID"`
+	ElementID int64  `json:"element_id"`
 	Name      string `json:"name"`
 	Position  int    `json:"position"` // index
 }
