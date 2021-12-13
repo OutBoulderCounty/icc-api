@@ -4,6 +4,8 @@ import (
 	"api/env"
 	"api/forms/responses"
 	"api/users"
+	"errors"
+	"fmt"
 	"testing"
 	"time"
 )
@@ -13,7 +15,11 @@ const pathToDotEnv = "../../.env"
 func TestNewResponse(t *testing.T) {
 	e := env.TestSetup(t, true, pathToDotEnv)
 	elementID := int64(1)
-	userID := int64(1)
+	userID, err := getTestUserID(e)
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
 	value := "test"
 	response, err := responses.NewResponse(elementID, userID, value, e.DB)
 	if err != nil {
@@ -34,6 +40,44 @@ func TestNewResponse(t *testing.T) {
 	}
 }
 
+// make sure a user can't create a response if they have not accepted the user agreement
+func TestNewResponseWithInvalidUserAgreement(t *testing.T) {
+	e := env.TestSetup(t, false, pathToDotEnv)
+	// get the current user agreement status for the test user
+	selectUser := fmt.Sprintf("select id, agreementAccepted from users where email = '%s';", users.TestUser)
+	var userID int64
+	var userAgreementAccepted bool
+	err := e.DB.QueryRow(selectUser).Scan(&userID, &userAgreementAccepted)
+	if err != nil {
+		t.Error("failed to get user agreement status: " + err.Error())
+		return
+	}
+	if userAgreementAccepted {
+		// temporarily set the user agreement status to false
+		updateUser := fmt.Sprintf("update users set agreementAccepted = false where email = '%s';", users.TestUser)
+		_, err = e.DB.Exec(updateUser)
+		if err != nil {
+			t.Error("failed to update user agreement status: " + err.Error())
+			return
+		}
+		defer func() {
+			// reset the user agreement status
+			updateUserAccepted := fmt.Sprintf("update users set agreementAccepted = true where email = '%s';", users.TestUser)
+			_, err = e.DB.Exec(updateUserAccepted)
+			if err != nil {
+				t.Error("failed to reset user agreement status: " + err.Error())
+				return
+			}
+		}()
+	}
+
+	elementID := int64(1)
+	_, err = responses.NewResponse(elementID, userID, "test", e.DB)
+	if err == nil {
+		t.Error("expected error when creating response with invalid user agreement")
+	}
+}
+
 // make sure we can't create a response with a non-existent element
 func TestNewResponseWithInvalidElement(t *testing.T) {
 	e := env.TestSetup(t, true, pathToDotEnv)
@@ -46,7 +90,11 @@ func TestNewResponseWithInvalidElement(t *testing.T) {
 		return
 	}
 	elementID := maxElementID + 1000000
-	userID := int64(1)
+	userID, err := getTestUserID(e)
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
 	value := "test"
 	_, err = responses.NewResponse(elementID, userID, value, e.DB)
 	if err == nil {
@@ -100,7 +148,11 @@ func TestNewResponseWithOptions(t *testing.T) {
 		}
 		optionIDs = append(optionIDs, optionID)
 	}
-	userID := int64(1)
+	userID, err := getTestUserID(e)
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
 
 	currentTime := time.Now()
 	response, err := responses.NewResponseWithOptions(elementID, userID, optionIDs, e.DB)
@@ -128,6 +180,16 @@ func TestNewResponseWithOptions(t *testing.T) {
 	}
 }
 
+func getTestUserID(e *env.Env) (int64, error) {
+	selectUser := fmt.Sprintf("select id from users where email = '%s';", users.TestUser)
+	var userID int64
+	err := e.DB.QueryRow(selectUser).Scan(&userID)
+	if err != nil {
+		return 0, errors.New("failed to get user ID: " + err.Error())
+	}
+	return userID, nil
+}
+
 func TestNewResponseWithInvalidOptions(t *testing.T) {
 	e := env.TestSetup(t, true, pathToDotEnv)
 	// generate an invalid option ID
@@ -140,7 +202,11 @@ func TestNewResponseWithInvalidOptions(t *testing.T) {
 	}
 	optionID := maxOptionID + 1000000
 	elementID := int64(2)
-	userID := int64(1)
+	userID, err := getTestUserID(e)
+	if err != nil {
+		t.Error(err.Error())
+		return
+	}
 	_, err = responses.NewResponseWithOptions(elementID, userID, []int64{optionID}, e.DB)
 	if err == nil {
 		t.Error("expected error when creating response with invalid option")

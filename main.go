@@ -187,6 +187,12 @@ func setup() *env.Env {
 			resp, err = responses.NewResponse(response.ElementID, user.ID, response.Value, environment.DB)
 		}
 		if err != nil {
+			if err.Error() == "user must accept the user agreement" {
+				c.JSON(http.StatusUnauthorized, gin.H{
+					"error": err.Error(),
+				})
+				return
+			}
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error": err.Error(),
 			})

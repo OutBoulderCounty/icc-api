@@ -53,15 +53,10 @@ func NewResponse(elementID int64, userID int64, value string, db *sql.DB) (*Resp
 		return nil, fmt.Errorf("element %v not found", elementID)
 	}
 
-	// validate user exists
-	selectUser := "SELECT id FROM users WHERE id = ?"
-	var selectedUser int64
-	err = db.QueryRow(selectUser, userID).Scan(&selectedUser)
+	// validate user
+	err = validateUser(userID, db)
 	if err != nil {
-		return nil, fmt.Errorf("error selecting user %v: %s", userID, err.Error())
-	}
-	if selectedUser == 0 {
-		return nil, fmt.Errorf("user %v not found", userID)
+		return nil, err
 	}
 
 	resp := &Response{
@@ -197,14 +192,16 @@ func validateElement(elementID int64, db *sql.DB) error {
 }
 
 func validateUser(userID int64, db *sql.DB) error {
-	selectUser := "SELECT id FROM users WHERE id = ?"
-	var selectedUser int64
-	err := db.QueryRow(selectUser, userID).Scan(&selectedUser)
+	user, err := users.Get(userID, db)
 	if err != nil {
-		return fmt.Errorf("error selecting user %v: %s", userID, err.Error())
+		return errors.New("error getting user: " + err.Error())
 	}
-	if selectedUser == 0 {
+	if user.ID == 0 {
 		return fmt.Errorf("user %v not found", userID)
+	}
+	// validate user accepted the user agreement
+	if !user.AgreementAccepted {
+		return errors.New("user must accept the user agreement")
 	}
 	return nil
 }
