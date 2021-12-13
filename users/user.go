@@ -142,16 +142,17 @@ func UpdateUser(sessionToken string, user *User, e *env.Env) (int64, error) {
 	if sessionToken == "" {
 		return 0, errors.New("session token is required")
 	}
+	loggedInUser, err := GetUserBySession(sessionToken, e)
+	if err != nil {
+		return 0, errors.New("failed to get logged in user: " + err.Error())
+	}
 	// get user id from session token
 	if user.StytchUserID == "" {
-		params := &stytch.SessionsAuthenticateParams{
-			SessionToken: sessionToken,
+		user.StytchUserID = loggedInUser.StytchUserID
+	} else {
+		if user.StytchUserID != loggedInUser.StytchUserID {
+			return 0, errors.New("cannot update another user")
 		}
-		resp, err := e.Stytch.Sessions.Authenticate(params)
-		if err != nil {
-			return 0, errors.New("failed to authenticate session: " + err.Error())
-		}
-		user.StytchUserID = resp.Session.UserID
 	}
 	// get existing user from db
 	existingUser, err := GetUserByStytchID(&user.StytchUserID, e)
@@ -186,15 +187,19 @@ func UpdateUserHandler(c *gin.Context, e *env.Env) {
 	var user User
 	err := c.BindJSON(&user)
 	if err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 	user.ID, err = UpdateUser(c.GetHeader("Authorization"), &user, e)
 	if err != nil {
-		c.JSON(400, gin.H{"error": err.Error()})
+		if err.Error() == "cannot update another user" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+			return
+		}
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
-	c.JSON(200, gin.H{"user": user})
+	c.JSON(http.StatusOK, gin.H{"user": user})
 }
 
 func DeleteUser(stytchUserID *string, e *env.Env) error {
