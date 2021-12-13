@@ -151,6 +151,28 @@ func TestRoutes(t *testing.T) {
 		return true
 	}
 
+	// get a user that is not the stytch test user
+	selectClarkUser := "SELECT stytchUserID FROM users WHERE email = 'cwinters@outboulder.org'"
+	var stytchUserID string
+	err = env.DB.QueryRow(selectClarkUser).Scan(&stytchUserID)
+	if err != nil {
+		t.Error("Failed to get stytch user ID. " + err.Error())
+		return
+	}
+	updateIncorrectUserBody, err := json.Marshal(users.User{
+		StytchUserID: stytchUserID,
+		FirstName:    "Clark",
+		LastName:     "Winters",
+	})
+	if err != nil {
+		t.Error("Failed to marshal update incorrect user body: " + err.Error())
+	}
+	updateIncorrectUserReq, err := http.NewRequest("PUT", "/user", bytes.NewBuffer(updateIncorrectUserBody))
+	if err != nil {
+		t.Error("Failed to create update incorrect user request: " + err.Error())
+	}
+	updateIncorrectUserReq.Header.Set("Authorization", users.TestSessionToken)
+
 	getUserReq, err := http.NewRequest("GET", "/user", nil)
 	if err != nil {
 		t.Error("Failed to create get user request: " + err.Error())
@@ -369,6 +391,7 @@ func TestRoutes(t *testing.T) {
 		{name: "GetForms", request: getFormsReq, wantCode: http.StatusOK, testBody: getFormsBodyTest},
 		{name: "GetForm", request: getFormReq, wantCode: http.StatusOK, testBody: getFormBodyTest},
 		{name: "UpdateUser", request: updateUserReq, wantCode: http.StatusOK, testBody: updateUserTest},
+		{name: "UpdateIncorrectUser", request: updateIncorrectUserReq, wantCode: http.StatusUnauthorized},
 		{name: "GetUser", request: getUserReq, wantCode: http.StatusOK},
 		{name: "NewResponse", request: newResponseReq, wantCode: http.StatusOK, testBody: newResponseTest},
 		{name: "NewResponseWithOptions", request: newResponseWithOptionsReq, wantCode: http.StatusOK, testBody: newResponseWithOptionsTest},
