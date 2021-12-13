@@ -7,23 +7,23 @@ import (
 )
 
 type Form struct {
-	ID       int64  `json:"id"`
-	Name     string `json:"name"`
-	Required bool   `json:"required"`
-	Live     bool   `json:"live"`
-	Elements []Element
+	ID       int64     `json:"id"`
+	Name     string    `json:"name"`
+	Required bool      `json:"required"`
+	Live     bool      `json:"live"`
+	Elements []Element `json:"elements"`
 }
 
 type Element struct {
-	ID       int64  `json:"id"`
-	FormID   int64  `json:"form_id"`
-	Label    string `json:"label"`
-	Type     string `json:"type"`
-	Position int    `json:"position"` // index
-	Required bool   `json:"required"`
-	Priority int    `json:"priority"`
-	Search   bool   `json:"search"`
-	Options  []Option
+	ID       int64    `json:"id"`
+	FormID   int64    `json:"form_id"`
+	Label    string   `json:"label"`
+	Type     string   `json:"type"`
+	Position int      `json:"position"` // index
+	Required bool     `json:"required"`
+	Priority int      `json:"priority"`
+	Search   bool     `json:"search"`
+	Options  []Option `json:"options"`
 }
 
 type Option struct {
