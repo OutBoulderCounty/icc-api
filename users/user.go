@@ -18,18 +18,18 @@ const TestToken = "DOYoip3rvIMMW5lgItikFK-Ak1CfMsgjuiCyI7uuU94="
 const TestSessionToken = "WJtR5BCy38Szd5AfoDpf0iqFKEt4EE5JhjlWUY7l3FtY"
 
 type User struct {
-	ID                int64
-	StytchUserID      string
-	Email             string
-	ActiveRoles       []string
-	FirstName         string
-	LastName          string
-	Pronouns          string
-	PracticeName      string
-	Address           string
-	Specialty         string
-	Phone             string
-	AgreementAccepted bool
+	ID                int64    `json:"id"`
+	StytchUserID      string   `json:"stytch_user_id"`
+	Email             string   `json:"email"`
+	ActiveRoles       []string `json:"active_roles"`
+	FirstName         string   `json:"first_name"`
+	LastName          string   `json:"last_name"`
+	Pronouns          string   `json:"pronouns"`
+	PracticeName      string   `json:"practice_name"`
+	Address           string   `json:"address"`
+	Specialty         string   `json:"specialty"`
+	Phone             string   `json:"phone"`
+	AgreementAccepted bool     `json:"agreement_accepted"`
 }
 
 type sqlUser struct {
