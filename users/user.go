@@ -106,6 +106,20 @@ func GetUserByStytchID(stytchUserID *string, e *env.Env) (*User, error) {
 		return nil, err
 	}
 	user := dbUser.ToUser()
+	// get active roles
+	user.ActiveRoles = []string{}
+	rows, err := e.DB.Query("select r.name from user_roles ur, roles r where ur.roleID = r.id and ur.active = true and ur.userID = ?", user.ID)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var role string
+		err := rows.Scan(&role)
+		if err != nil {
+			return nil, err
+		}
+		user.ActiveRoles = append(user.ActiveRoles, role)
+	}
 	return user, nil
 }
 

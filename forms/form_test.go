@@ -35,3 +35,28 @@ func TestGetForm(t *testing.T) {
 		t.Error("form element options is empty")
 	}
 }
+
+func TestNewForm(t *testing.T) {
+	e := env.TestSetup(t, true, "../.env")
+	element := forms.Element{
+		Label: "Test Element",
+		Type:  "text",
+	}
+	newForm := forms.Form{
+		Name:     "Test Form",
+		Required: false,
+		Live:     false,
+		Elements: []*forms.Element{&element},
+	}
+
+	form, err := forms.NewForm(&newForm, e.DB)
+	if err != nil {
+		t.Error("error creating new form. " + err.Error())
+	}
+	if form.ID == 0 {
+		t.Error("form id is 0")
+	}
+	if form.Name == "" {
+		t.Error("form name is empty")
+	}
+}
