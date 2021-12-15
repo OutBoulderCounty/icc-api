@@ -7,23 +7,23 @@ import (
 )
 
 type Form struct {
-	ID       int64     `json:"id"`
-	Name     string    `json:"name"`
-	Required bool      `json:"required"`
-	Live     bool      `json:"live"`
-	Elements []Element `json:"elements"`
+	ID       int64      `json:"id"`
+	Name     string     `json:"name"`
+	Required bool       `json:"required"`
+	Live     bool       `json:"live"`
+	Elements []*Element `json:"elements"`
 }
 
 type Element struct {
-	ID       int64    `json:"id"`
-	FormID   int64    `json:"form_id"`
-	Label    string   `json:"label"`
-	Type     string   `json:"type"`
-	Position int      `json:"position"` // index
-	Required bool     `json:"required"`
-	Priority int      `json:"priority"`
-	Search   bool     `json:"search"`
-	Options  []Option `json:"options"`
+	ID       int64     `json:"id"`
+	FormID   int64     `json:"form_id"`
+	Label    string    `json:"label"`
+	Type     string    `json:"type"`
+	Position int       `json:"position"` // index
+	Required bool      `json:"required"`
+	Priority int       `json:"priority"`
+	Search   bool      `json:"search"`
+	Options  []*Option `json:"options"`
 }
 
 type Option struct {
@@ -86,10 +86,67 @@ func GetForm(id int64, db *sql.DB) (*Form, error) {
 			if err != nil {
 				return nil, errors.New("failed to scan option: " + err.Error())
 			}
-			element.Options = append(element.Options, option)
+			element.Options = append(element.Options, &option)
 		}
-		form.Elements = append(form.Elements, element)
+		form.Elements = append(form.Elements, &element)
 	}
 
 	return &form, nil
+}
+
+func NewForm(form *Form, db *sql.DB) (*Form, error) {
+	resp, err := db.Exec("INSERT INTO forms (name, required, live) VALUES (?, ?, ?)", form.Name, form.Required, form.Live)
+	if err != nil {
+		return nil, errors.New("failed to insert form: " + err.Error())
+	}
+	id, err := resp.LastInsertId()
+	if err != nil {
+		return nil, errors.New("failed to get inserted form id: " + err.Error())
+	}
+	form.ID = id
+	var elems []*Element
+	for _, element := range form.Elements {
+		element.FormID = id
+		elem, err := NewElement(element, db)
+		if err != nil {
+			return nil, errors.New("failed to insert element: " + err.Error())
+		}
+		elems = append(elems, elem)
+	}
+	form.Elements = elems
+	return form, nil
+}
+
+func NewElement(element *Element, db *sql.DB) (*Element, error) {
+	resp, err := db.Exec("INSERT INTO elements (formID, label, type, position, required, priority, search) VALUES (?, ?, ?, ?, ?, ?, ?)", element.FormID, element.Label, element.Type, element.Position, element.Required, element.Priority, element.Search)
+	if err != nil {
+		return nil, errors.New("failed to insert element: " + err.Error())
+	}
+	id, err := resp.LastInsertId()
+	if err != nil {
+		return nil, errors.New("failed to get inserted element id: " + err.Error())
+	}
+	element.ID = id
+	for i, option := range element.Options {
+		option.ElementID = id
+		option, err := NewOption(option, db)
+		if err != nil {
+			return nil, errors.New("failed to insert option: " + err.Error())
+		}
+		element.Options[i] = option
+	}
+	return element, nil
+}
+
+func NewOption(option *Option, db *sql.DB) (*Option, error) {
+	resp, err := db.Exec("INSERT INTO options (elementID, name, position) VALUES (?, ?, ?)", option.ElementID, option.Name, option.Position)
+	if err != nil {
+		return nil, errors.New("failed to insert option: " + err.Error())
+	}
+	id, err := resp.LastInsertId()
+	if err != nil {
+		return nil, errors.New("failed to get inserted option id: " + err.Error())
+	}
+	option.ID = id
+	return option, nil
 }

@@ -157,6 +157,26 @@ func setup() *env.Env {
 			"responses": resps,
 		})
 	})
+	authorizedForm.POST("", adminAuthRequired(environment), func(c *gin.Context) {
+		var form forms.Form
+		err := c.ShouldBindJSON(&form)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		newForm, err := forms.NewForm(&form, environment.DB)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"form": newForm,
+		})
+	})
 
 	authorizedResponse := environment.Router.Group("/response", authRequired(environment))
 	authorizedResponse.POST("", func(c *gin.Context) {
@@ -285,5 +305,38 @@ func authRequired(environment *env.Env) gin.HandlerFunc {
 		c.Set("user_id", user.ID)
 		c.Set("stytch_user_id", user.StytchUserID)
 		c.Next()
+	}
+}
+
+func adminAuthRequired(environment *env.Env) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		token := c.Request.Header.Get("Authorization")
+		if token == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": "Unauthorized: no token provided",
+			})
+			c.Abort()
+			return
+		}
+		user, err := users.GetUserBySession(token, environment)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{
+				"error": err.Error(),
+			})
+			c.Abort()
+			return
+		}
+		for _, role := range user.ActiveRoles {
+			if role == "admin" {
+				c.Set("user_id", user.ID)
+				c.Set("stytch_user_id", user.StytchUserID)
+				c.Next()
+				return
+			}
+		}
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": "User is not an admin",
+		})
+		c.Abort()
 	}
 }
