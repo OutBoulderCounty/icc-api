@@ -89,6 +89,25 @@ func setup() *env.Env {
 	authorizedUser.GET("", func(c *gin.Context) {
 		users.GetUserHandler(c, environment)
 	})
+	authorizedUser.GET("/:id", adminAuthRequired(environment), func(c *gin.Context) {
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		user, err := users.Get(id, environment.DB)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"user": user,
+		})
+	})
 
 	adminUsers := environment.Router.Group("/users", adminAuthRequired(environment))
 	adminUsers.GET("", func(c *gin.Context) {
