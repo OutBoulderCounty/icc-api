@@ -309,6 +309,32 @@ func setup() *env.Env {
 		c.JSON(http.StatusOK, gin.H{"responses": userResps})
 	})
 
+	provider := environment.Router.Group("/provider")
+	provider.PUT("/:id/approve/:approval", adminAuthRequired(environment), func(c *gin.Context) {
+		approval, err := strconv.ParseBool(c.Param("approval"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		err = users.ApproveProvider(id, approval, environment.DB)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		c.Status(http.StatusOK)
+	})
+
 	return environment
 }
 
