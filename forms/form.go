@@ -150,3 +150,55 @@ func NewOption(option *Option, db *sql.DB) (*Option, error) {
 	option.ID = id
 	return option, nil
 }
+
+func UpdateForm(form *Form, db *sql.DB) error {
+	_, err := db.Exec("UPDATE forms SET name = ?, required = ?, live = ? WHERE id = ?", form.Name, form.Required, form.Live, form.ID)
+	if err != nil {
+		return errors.New("failed to update form: " + err.Error())
+	}
+	for _, element := range form.Elements {
+		if element.ID > 0 {
+			err := UpdateElement(element, db)
+			if err != nil {
+				return errors.New("failed to update element: " + err.Error())
+			}
+		} else {
+			element.FormID = form.ID
+			_, err := NewElement(element, db)
+			if err != nil {
+				return errors.New("failed to create element: " + err.Error())
+			}
+		}
+	}
+	return nil
+}
+
+func UpdateElement(element *Element, db *sql.DB) error {
+	_, err := db.Exec("UPDATE elements SET label = ?, type = ?, position = ?, required = ?, priority = ?, search = ? WHERE id = ?", element.Label, element.Type, element.Position, element.Required, element.Priority, element.Search, element.ID)
+	if err != nil {
+		return errors.New("failed to update element: " + err.Error())
+	}
+	for _, option := range element.Options {
+		if option.ID > 0 {
+			err := UpdateOption(option, db)
+			if err != nil {
+				return errors.New("failed to update option: " + err.Error())
+			}
+		} else {
+			option.ElementID = element.ID
+			_, err := NewOption(option, db)
+			if err != nil {
+				return errors.New("failed to create option: " + err.Error())
+			}
+		}
+	}
+	return nil
+}
+
+func UpdateOption(option *Option, db *sql.DB) error {
+	_, err := db.Exec("UPDATE options SET name = ?, position = ? WHERE id = ?", option.Name, option.Position, option.ID)
+	if err != nil {
+		return errors.New("failed to update option: " + err.Error())
+	}
+	return nil
+}

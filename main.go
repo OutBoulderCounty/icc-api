@@ -177,6 +177,24 @@ func setup() *env.Env {
 			"form": newForm,
 		})
 	})
+	authorizedForm.PUT("", adminAuthRequired(environment), func(c *gin.Context) {
+		var form forms.Form
+		err := c.ShouldBindJSON(&form)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		err = forms.UpdateForm(&form, environment.DB)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		c.Status(http.StatusOK)
+	})
 
 	authorizedResponse := environment.Router.Group("/response", authRequired(environment))
 	authorizedResponse.POST("", func(c *gin.Context) {

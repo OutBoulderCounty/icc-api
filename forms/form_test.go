@@ -6,8 +6,10 @@ import (
 	"testing"
 )
 
+const pathToDotEnv = "../.env"
+
 func TestGetForm(t *testing.T) {
-	e := env.TestSetup(t, true, "../.env")
+	e := env.TestSetup(t, true, pathToDotEnv)
 	// get a form that has elements and options
 	selectForms := "select id from forms where id in (select distinct formID from elements where id in (select distinct elementID from options))"
 	row := e.DB.QueryRow(selectForms)
@@ -37,7 +39,7 @@ func TestGetForm(t *testing.T) {
 }
 
 func TestNewForm(t *testing.T) {
-	e := env.TestSetup(t, true, "../.env")
+	e := env.TestSetup(t, true, pathToDotEnv)
 	element := forms.Element{
 		Label: "Test Element",
 		Type:  "text",
@@ -58,5 +60,57 @@ func TestNewForm(t *testing.T) {
 	}
 	if form.Name == "" {
 		t.Error("form name is empty")
+	}
+}
+
+func TestUpdateForm(t *testing.T) {
+	e := env.TestSetup(t, true, pathToDotEnv)
+	newForm := forms.Form{
+		Name:     "Form to update",
+		Required: false,
+		Live:     false,
+	}
+	form, err := forms.NewForm(&newForm, e.DB)
+	if err != nil {
+		t.Error("error creating new form. " + err.Error())
+		return
+	}
+	form.Name = "Updated Form"
+	form.Elements = []*forms.Element{
+		{
+			Label:    "New element for updated form",
+			Type:     "text",
+			Position: 0,
+			Required: false,
+		},
+	}
+	err = forms.UpdateForm(form, e.DB)
+	if err != nil {
+		t.Error("error updating form. " + err.Error())
+		return
+	}
+	t.Log("form ID:", form.ID)
+	updatedForm, err := forms.GetForm(form.ID, e.DB)
+	if err != nil {
+		t.Error("error getting updated form. " + err.Error())
+		return
+	}
+	if updatedForm.Name != form.Name {
+		t.Error("form name does not match")
+	}
+	if updatedForm.ID != form.ID {
+		t.Error("form ID does not match")
+	}
+	if updatedForm.Required != form.Required {
+		t.Error("form required value does not match")
+	}
+	if updatedForm.Live != form.Live {
+		t.Error("form live value does not match")
+	}
+	if updatedForm.Elements[0].Label != form.Elements[0].Label {
+		t.Error("form element label does not match")
+	}
+	if updatedForm.Elements[0].Type != form.Elements[0].Type {
+		t.Error("form element type does not match")
 	}
 }
