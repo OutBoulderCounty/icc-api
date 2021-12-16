@@ -13,7 +13,7 @@ import (
 const pathToDotEnv = "../../.env"
 
 func TestNewResponse(t *testing.T) {
-	e := env.TestSetup(t, true, pathToDotEnv)
+	e := env.TestSetup(t, false, pathToDotEnv)
 	elementID := int64(1)
 	userID, err := getTestUserID(e)
 	if err != nil {
@@ -123,7 +123,7 @@ func TestNewResponseWithInvalidUser(t *testing.T) {
 }
 
 func TestNewResponseWithOptions(t *testing.T) {
-	e := env.TestSetup(t, true, pathToDotEnv)
+	e := env.TestSetup(t, false, pathToDotEnv)
 	selectElement := "select distinct(elementID) from options;"
 	var elementID int64
 	err := e.DB.QueryRow(selectElement).Scan(&elementID)
