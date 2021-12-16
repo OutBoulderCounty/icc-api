@@ -195,6 +195,22 @@ func setup() *env.Env {
 		}
 		c.Status(http.StatusOK)
 	})
+	authorizedForm.DELETE("/:id", adminAuthRequired(environment), func(c *gin.Context) {
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		err = forms.DeleteForm(id, environment.DB)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+	})
 
 	authorizedResponse := environment.Router.Group("/response", authRequired(environment))
 	authorizedResponse.POST("", func(c *gin.Context) {
