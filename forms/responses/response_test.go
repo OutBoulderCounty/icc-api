@@ -343,3 +343,32 @@ func TestGetResponsesByForm(t *testing.T) {
 		}
 	}
 }
+
+func TestResponseApproval(t *testing.T) {
+	e := env.TestSetup(t, true, pathToDotEnv)
+	selectResponse := "select id from responses where approved = false"
+	var responseID int64
+	err := e.DB.QueryRow(selectResponse).Scan(&responseID)
+	if err != nil {
+		t.Error("failed to get response ID: " + err.Error())
+		return
+	}
+	err = responses.ApproveResponse(responseID, true, e.DB)
+	if err != nil {
+		t.Error("failed to approve response: " + err.Error())
+		return
+	}
+	// validate that the response was approved
+	resp, err := responses.GetResponse(responseID, e.DB)
+	if err != nil {
+		t.Error("failed to get response: " + err.Error())
+	}
+	if !resp.Approved {
+		t.Error("expected response to be approved")
+	}
+	// disapprove response
+	err = responses.ApproveResponse(responseID, false, e.DB)
+	if err != nil {
+		t.Error("failed to disapprove response: " + err.Error())
+	}
+}
