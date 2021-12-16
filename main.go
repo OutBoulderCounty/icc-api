@@ -83,13 +83,44 @@ func setup() *env.Env {
 	})
 
 	authorizedUser := environment.Router.Group("/user", authRequired(environment))
-
 	authorizedUser.PUT("", func(c *gin.Context) {
 		users.UpdateUserHandler(c, environment)
 	})
-
 	authorizedUser.GET("", func(c *gin.Context) {
 		users.GetUserHandler(c, environment)
+	})
+	authorizedUser.GET("/:id", adminAuthRequired(environment), func(c *gin.Context) {
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		user, err := users.Get(id, environment.DB)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"user": user,
+		})
+	})
+
+	adminUsers := environment.Router.Group("/users", adminAuthRequired(environment))
+	adminUsers.GET("", func(c *gin.Context) {
+		foundUsers, err := users.GetUsers(environment.DB)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"users": foundUsers,
+		})
 	})
 
 	authorizedForms := environment.Router.Group("/forms", authRequired(environment))
@@ -156,6 +187,23 @@ func setup() *env.Env {
 		c.JSON(http.StatusOK, gin.H{
 			"responses": resps,
 		})
+	})
+	authorizedForm.GET("/:id/responses/all", adminAuthRequired(environment), func(c *gin.Context) {
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		resps, err := responses.GetResponsesByForm(id, environment.DB)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"responses": resps})
 	})
 	authorizedForm.POST("", adminAuthRequired(environment), func(c *gin.Context) {
 		var form forms.Form
@@ -287,6 +335,46 @@ func setup() *env.Env {
 
 		c.JSON(http.StatusOK, gin.H{"response": response})
 	})
+	authorizedResponse.PUT("/:id/approve/:approval", adminAuthRequired(environment), func(c *gin.Context) {
+		approval, err := strconv.ParseBool(c.Param("approval"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		err = responses.ApproveResponse(id, approval, environment.DB)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		c.Status(http.StatusOK)
+	})
+	authorizedResponse.GET("/any/:id", adminAuthRequired(environment), func(c *gin.Context) {
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+		}
+		resp, err := responses.GetResponse(id, environment.DB)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"response": resp})
+	})
 
 	authorizedResponses := environment.Router.Group("/responses", authRequired(environment))
 	authorizedResponses.GET("", func(c *gin.Context) {
@@ -307,6 +395,42 @@ func setup() *env.Env {
 			}
 		}
 		c.JSON(http.StatusOK, gin.H{"responses": userResps})
+	})
+	authorizedResponses.GET("/all", adminAuthRequired(environment), func(c *gin.Context) {
+		resps, err := responses.GetResponses(environment.DB)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"responses": resps})
+	})
+
+	provider := environment.Router.Group("/provider")
+	provider.PUT("/:id/approve/:approval", adminAuthRequired(environment), func(c *gin.Context) {
+		approval, err := strconv.ParseBool(c.Param("approval"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		err = users.ApproveProvider(id, approval, environment.DB)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		c.Status(http.StatusOK)
 	})
 
 	return environment

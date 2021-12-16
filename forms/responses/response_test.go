@@ -13,7 +13,7 @@ import (
 const pathToDotEnv = "../../.env"
 
 func TestNewResponse(t *testing.T) {
-	e := env.TestSetup(t, true, pathToDotEnv)
+	e := env.TestSetup(t, false, pathToDotEnv)
 	elementID := int64(1)
 	userID, err := getTestUserID(e)
 	if err != nil {
@@ -123,7 +123,7 @@ func TestNewResponseWithInvalidUser(t *testing.T) {
 }
 
 func TestNewResponseWithOptions(t *testing.T) {
-	e := env.TestSetup(t, true, pathToDotEnv)
+	e := env.TestSetup(t, false, pathToDotEnv)
 	selectElement := "select distinct(elementID) from options;"
 	var elementID int64
 	err := e.DB.QueryRow(selectElement).Scan(&elementID)
@@ -341,5 +341,34 @@ func TestGetResponsesByForm(t *testing.T) {
 		if response.UserID != user.ID {
 			t.Error("expected response to have user ID", user.ID, "; got", response.UserID)
 		}
+	}
+}
+
+func TestResponseApproval(t *testing.T) {
+	e := env.TestSetup(t, true, pathToDotEnv)
+	selectResponse := "select id from responses where approved = false"
+	var responseID int64
+	err := e.DB.QueryRow(selectResponse).Scan(&responseID)
+	if err != nil {
+		t.Error("failed to get response ID: " + err.Error())
+		return
+	}
+	err = responses.ApproveResponse(responseID, true, e.DB)
+	if err != nil {
+		t.Error("failed to approve response: " + err.Error())
+		return
+	}
+	// validate that the response was approved
+	resp, err := responses.GetResponse(responseID, e.DB)
+	if err != nil {
+		t.Error("failed to get response: " + err.Error())
+	}
+	if !resp.Approved {
+		t.Error("expected response to be approved")
+	}
+	// disapprove response
+	err = responses.ApproveResponse(responseID, false, e.DB)
+	if err != nil {
+		t.Error("failed to disapprove response: " + err.Error())
 	}
 }

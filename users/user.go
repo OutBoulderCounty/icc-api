@@ -30,6 +30,7 @@ type User struct {
 	Specialty         string   `json:"specialty"`
 	Phone             string   `json:"phone"`
 	AgreementAccepted bool     `json:"agreement_accepted"`
+	ApprovedProvider  bool     `json:"approved_provider"`
 }
 
 type sqlUser struct {
@@ -56,12 +57,60 @@ func (u *sqlUser) ToUser() *User {
 	user.Specialty = u.Specialty.String
 	user.Phone = u.Phone.String
 	user.AgreementAccepted = u.AgreementAccepted
+	user.ApprovedProvider = u.ApprovedProvider
 	return &user
+}
+
+func GetUsers(db *sql.DB) ([]*User, error) {
+	selectUsers := "select id, stytchUserID, email, firstName, lastName, pronouns, practiceName, address, specialty, phone, agreementAccepted, approvedProvider from users"
+	rows, err := db.Query(selectUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var users []*User
+	for rows.Next() {
+		var dbUser sqlUser
+		err := rows.Scan(
+			&dbUser.ID,
+			&dbUser.StytchUserID,
+			&dbUser.Email,
+			&dbUser.FirstName,
+			&dbUser.LastName,
+			&dbUser.Pronouns,
+			&dbUser.PracticeName,
+			&dbUser.Address,
+			&dbUser.Specialty,
+			&dbUser.Phone,
+			&dbUser.AgreementAccepted,
+			&dbUser.ApprovedProvider,
+		)
+		if err != nil {
+			return nil, err
+		}
+		user := dbUser.ToUser()
+		// get active roles
+		roleRows, err := db.Query("select r.name from user_roles ur, roles r where ur.roleID = r.id and ur.active = true and ur.userID = ?", user.ID)
+		if err != nil {
+			return nil, err
+		}
+		defer roleRows.Close()
+		for roleRows.Next() {
+			var role string
+			err := roleRows.Scan(&role)
+			if err != nil {
+				return nil, err
+			}
+			user.ActiveRoles = append(user.ActiveRoles, role)
+		}
+		users = append(users, user)
+	}
+	return users, nil
 }
 
 // retrieves a single user from the database
 func Get(id int64, db *sql.DB) (*User, error) {
-	row := db.QueryRow("SELECT id, stytchUserID, email, firstName, lastName, pronouns, practiceName, address, specialty, phone, agreementAccepted FROM users WHERE id = ?", id)
+	row := db.QueryRow("SELECT id, stytchUserID, email, firstName, lastName, pronouns, practiceName, address, specialty, phone, agreementAccepted, approvedProvider FROM users WHERE id = ?", id)
 	var dbUser sqlUser
 	err := row.Scan(
 		&dbUser.ID,
@@ -75,6 +124,7 @@ func Get(id int64, db *sql.DB) (*User, error) {
 		&dbUser.Specialty,
 		&dbUser.Phone,
 		&dbUser.AgreementAccepted,
+		&dbUser.ApprovedProvider,
 	)
 	if err != nil {
 		return nil, err
@@ -87,7 +137,7 @@ func GetUserByStytchID(stytchUserID *string, e *env.Env) (*User, error) {
 	if stytchUserID == nil {
 		return nil, errors.New("stytchUserID is required")
 	}
-	row := e.DB.QueryRow("SELECT id, stytchUserID, email, firstName, lastName, pronouns, practiceName, address, specialty, phone, agreementAccepted FROM users WHERE stytchUserID = ?", *stytchUserID)
+	row := e.DB.QueryRow("SELECT id, stytchUserID, email, firstName, lastName, pronouns, practiceName, address, specialty, phone, agreementAccepted, approvedProvider FROM users WHERE stytchUserID = ?", *stytchUserID)
 	var dbUser sqlUser
 	err := row.Scan(
 		&dbUser.ID,
@@ -101,6 +151,7 @@ func GetUserByStytchID(stytchUserID *string, e *env.Env) (*User, error) {
 		&dbUser.Specialty,
 		&dbUser.Phone,
 		&dbUser.AgreementAccepted,
+		&dbUser.ApprovedProvider,
 	)
 	if err != nil {
 		return nil, err

@@ -16,6 +16,7 @@ type Response struct {
 	Value     string    `json:"value"`
 	OptionIDs []int64   `json:"option_ids"`
 	CreatedAt time.Time `json:"created_at"`
+	Approved  bool      `json:"approved"`
 }
 
 type sqlResponse struct {
@@ -31,6 +32,7 @@ func (r *sqlResponse) ToResponse() *Response {
 		Value:     r.Value.String,
 		OptionIDs: r.OptionIDs,
 		CreatedAt: r.CreatedAt,
+		Approved:  r.Approved,
 	}
 	return resp
 }
@@ -123,9 +125,9 @@ func NewResponseWithOptions(elementID int64, userID int64, optionIDs []int64, db
 }
 
 func GetResponse(id int64, db *sql.DB) (*Response, error) {
-	selectResponse := "SELECT id, elementID, userID, value, createdAt FROM responses WHERE id = ?"
+	selectResponse := "SELECT id, elementID, userID, value, createdAt, approved FROM responses WHERE id = ?"
 	var resp sqlResponse
-	err := db.QueryRow(selectResponse, id).Scan(&resp.ID, &resp.ElementID, &resp.UserID, &resp.Value, &resp.CreatedAt)
+	err := db.QueryRow(selectResponse, id).Scan(&resp.ID, &resp.ElementID, &resp.UserID, &resp.Value, &resp.CreatedAt, &resp.Approved)
 	if err != nil {
 		return nil, errors.New("error selecting response: " + err.Error())
 	}
@@ -137,7 +139,7 @@ func GetResponse(id int64, db *sql.DB) (*Response, error) {
 }
 
 func GetResponses(db *sql.DB) ([]*Response, error) {
-	selectResponses := "SELECT id, elementID, userID, value, createdAt FROM responses"
+	selectResponses := "SELECT id, elementID, userID, value, createdAt, approved FROM responses"
 	rows, err := db.Query(selectResponses)
 	if err != nil {
 		return nil, errors.New("error selecting responses: " + err.Error())
@@ -146,7 +148,7 @@ func GetResponses(db *sql.DB) ([]*Response, error) {
 	var responses []*Response
 	for rows.Next() {
 		var resp sqlResponse
-		err := rows.Scan(&resp.ID, &resp.ElementID, &resp.UserID, &resp.Value, &resp.CreatedAt)
+		err := rows.Scan(&resp.ID, &resp.ElementID, &resp.UserID, &resp.Value, &resp.CreatedAt, &resp.Approved)
 		if err != nil {
 			return nil, errors.New("error scanning responses: " + err.Error())
 		}
@@ -229,12 +231,35 @@ func GetFormResponsesByToken(token string, e *env.Env) ([]*FormResponse, error) 
 	return responses, nil
 }
 
+func GetResponsesByForm(formID int64, db *sql.DB) ([]*Response, error) {
+	selectResponses := "SELECT id, elementID, userID, value, createdAt, approved FROM responses WHERE elementID IN (SELECT id FROM elements WHERE formID = ?)"
+	rows, err := db.Query(selectResponses, formID)
+	if err != nil {
+		return nil, errors.New("error selecting responses: " + err.Error())
+	}
+	defer rows.Close()
+	var responses []*Response
+	for rows.Next() {
+		var resp sqlResponse
+		err := rows.Scan(&resp.ID, &resp.ElementID, &resp.UserID, &resp.Value, &resp.CreatedAt, &resp.Approved)
+		if err != nil {
+			return nil, errors.New("error scanning responses: " + err.Error())
+		}
+		resp.OptionIDs, err = getOptionsForResponse(resp.ID, db)
+		if err != nil {
+			return nil, errors.New("error getting response options: " + err.Error())
+		}
+		responses = append(responses, resp.ToResponse())
+	}
+	return responses, nil
+}
+
 func GetResponsesByFormAndToken(formID int64, token string, e *env.Env) ([]*Response, error) {
 	user, err := users.GetUserBySession(token, e)
 	if err != nil {
 		return nil, errors.New("error getting user: " + err.Error())
 	}
-	selectResponses := "SELECT r.id, r.elementID, r.userID, r.value, r.createdAt FROM responses r, elements e WHERE r.elementID = e.id AND e.formID = ? AND r.userID = ?"
+	selectResponses := "SELECT r.id, r.elementID, r.userID, r.value, r.createdAt, r.approved FROM responses r, elements e WHERE r.elementID = e.id AND e.formID = ? AND r.userID = ?"
 	rows, err := e.DB.Query(selectResponses, formID, user.ID)
 	if err != nil {
 		return nil, errors.New("error selecting responses: " + err.Error())
@@ -243,7 +268,7 @@ func GetResponsesByFormAndToken(formID int64, token string, e *env.Env) ([]*Resp
 	var responses []*Response
 	for rows.Next() {
 		var resp sqlResponse
-		err := rows.Scan(&resp.ID, &resp.ElementID, &resp.UserID, &resp.Value, &resp.CreatedAt)
+		err := rows.Scan(&resp.ID, &resp.ElementID, &resp.UserID, &resp.Value, &resp.CreatedAt, &resp.Approved)
 		if err != nil {
 			return nil, errors.New("error scanning response: " + err.Error())
 		}
@@ -254,4 +279,13 @@ func GetResponsesByFormAndToken(formID int64, token string, e *env.Env) ([]*Resp
 		responses = append(responses, resp.ToResponse())
 	}
 	return responses, nil
+}
+
+func ApproveResponse(id int64, approved bool, db *sql.DB) error {
+	updateResponse := "UPDATE responses SET approved = ? WHERE id = ?"
+	_, err := db.Exec(updateResponse, approved, id)
+	if err != nil {
+		return errors.New("error updating response: " + err.Error())
+	}
+	return nil
 }
