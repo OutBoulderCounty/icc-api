@@ -83,13 +83,25 @@ func setup() *env.Env {
 	})
 
 	authorizedUser := environment.Router.Group("/user", authRequired(environment))
-
 	authorizedUser.PUT("", func(c *gin.Context) {
 		users.UpdateUserHandler(c, environment)
 	})
-
 	authorizedUser.GET("", func(c *gin.Context) {
 		users.GetUserHandler(c, environment)
+	})
+
+	adminUsers := environment.Router.Group("/users", adminAuthRequired(environment))
+	adminUsers.GET("", func(c *gin.Context) {
+		foundUsers, err := users.GetUsers(environment.DB)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"users": foundUsers,
+		})
 	})
 
 	authorizedForms := environment.Router.Group("/forms", authRequired(environment))

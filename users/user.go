@@ -61,6 +61,53 @@ func (u *sqlUser) ToUser() *User {
 	return &user
 }
 
+func GetUsers(db *sql.DB) ([]*User, error) {
+	selectUsers := "select id, stytchUserID, email, firstName, lastName, pronouns, practiceName, address, specialty, phone, agreementAccepted, approvedProvider from users"
+	rows, err := db.Query(selectUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var users []*User
+	for rows.Next() {
+		var dbUser sqlUser
+		err := rows.Scan(
+			&dbUser.ID,
+			&dbUser.StytchUserID,
+			&dbUser.Email,
+			&dbUser.FirstName,
+			&dbUser.LastName,
+			&dbUser.Pronouns,
+			&dbUser.PracticeName,
+			&dbUser.Address,
+			&dbUser.Specialty,
+			&dbUser.Phone,
+			&dbUser.AgreementAccepted,
+			&dbUser.ApprovedProvider,
+		)
+		if err != nil {
+			return nil, err
+		}
+		user := dbUser.ToUser()
+		// get active roles
+		roleRows, err := db.Query("select r.name from user_roles ur, roles r where ur.roleID = r.id and ur.active = true and ur.userID = ?", user.ID)
+		if err != nil {
+			return nil, err
+		}
+		defer roleRows.Close()
+		for roleRows.Next() {
+			var role string
+			err := roleRows.Scan(&role)
+			if err != nil {
+				return nil, err
+			}
+			user.ActiveRoles = append(user.ActiveRoles, role)
+		}
+		users = append(users, user)
+	}
+	return users, nil
+}
+
 // retrieves a single user from the database
 func Get(id int64, db *sql.DB) (*User, error) {
 	row := db.QueryRow("SELECT id, stytchUserID, email, firstName, lastName, pronouns, practiceName, address, specialty, phone, agreementAccepted, approvedProvider FROM users WHERE id = ?", id)
