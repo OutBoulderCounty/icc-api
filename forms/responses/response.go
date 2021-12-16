@@ -231,6 +231,29 @@ func GetFormResponsesByToken(token string, e *env.Env) ([]*FormResponse, error) 
 	return responses, nil
 }
 
+func GetResponsesByForm(formID int64, db *sql.DB) ([]*Response, error) {
+	selectResponses := "SELECT id, elementID, userID, value, createdAt, approved FROM responses WHERE elementID IN (SELECT id FROM elements WHERE formID = ?)"
+	rows, err := db.Query(selectResponses, formID)
+	if err != nil {
+		return nil, errors.New("error selecting responses: " + err.Error())
+	}
+	defer rows.Close()
+	var responses []*Response
+	for rows.Next() {
+		var resp sqlResponse
+		err := rows.Scan(&resp.ID, &resp.ElementID, &resp.UserID, &resp.Value, &resp.CreatedAt, &resp.Approved)
+		if err != nil {
+			return nil, errors.New("error scanning responses: " + err.Error())
+		}
+		resp.OptionIDs, err = getOptionsForResponse(resp.ID, db)
+		if err != nil {
+			return nil, errors.New("error getting response options: " + err.Error())
+		}
+		responses = append(responses, resp.ToResponse())
+	}
+	return responses, nil
+}
+
 func GetResponsesByFormAndToken(formID int64, token string, e *env.Env) ([]*Response, error) {
 	user, err := users.GetUserBySession(token, e)
 	if err != nil {

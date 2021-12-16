@@ -188,6 +188,23 @@ func setup() *env.Env {
 			"responses": resps,
 		})
 	})
+	authorizedForm.GET("/:id/responses/all", adminAuthRequired(environment), func(c *gin.Context) {
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		resps, err := responses.GetResponsesByForm(id, environment.DB)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{"responses": resps})
+	})
 	authorizedForm.POST("", adminAuthRequired(environment), func(c *gin.Context) {
 		var form forms.Form
 		err := c.ShouldBindJSON(&form)
