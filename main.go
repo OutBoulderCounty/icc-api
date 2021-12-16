@@ -125,6 +125,18 @@ func setup() *env.Env {
 
 	authorizedForms := environment.Router.Group("/forms", authRequired(environment))
 	authorizedForms.GET("", func(c *gin.Context) {
+		foundForms, err := forms.GetLiveForms(environment.DB)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"forms": foundForms,
+		})
+	})
+	authorizedForms.GET("/all", adminAuthRequired(environment), func(c *gin.Context) {
 		foundForms, err := forms.GetForms(environment.DB)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{

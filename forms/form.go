@@ -55,6 +55,25 @@ func GetForms(db *sql.DB) ([]Form, error) {
 	return forms, nil
 }
 
+func GetLiveForms(db *sql.DB) ([]*Form, error) {
+	selectForms := "select id, name, required, live from forms where live = true"
+	rows, err := db.Query(selectForms)
+	if err != nil {
+		return nil, errors.New("failed to get forms: " + err.Error())
+	}
+	defer rows.Close()
+	var forms []*Form
+	for rows.Next() {
+		var form Form
+		err := rows.Scan(&form.ID, &form.Name, &form.Required, &form.Live)
+		if err != nil {
+			return nil, errors.New("failed to scan form: " + err.Error())
+		}
+		forms = append(forms, &form)
+	}
+	return forms, nil
+}
+
 func GetForm(id int64, db *sql.DB) (*Form, error) {
 	var form Form
 	selectForm := "SELECT id, name, required, live FROM forms WHERE id = ?"
