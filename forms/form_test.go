@@ -3,6 +3,7 @@ package forms_test
 import (
 	"api/env"
 	"api/forms"
+	"strings"
 	"testing"
 )
 
@@ -89,7 +90,6 @@ func TestUpdateForm(t *testing.T) {
 		t.Error("error updating form. " + err.Error())
 		return
 	}
-	t.Log("form ID:", form.ID)
 	updatedForm, err := forms.GetForm(form.ID, e.DB)
 	if err != nil {
 		t.Error("error getting updated form. " + err.Error())
@@ -112,5 +112,25 @@ func TestUpdateForm(t *testing.T) {
 	}
 	if updatedForm.Elements[0].Type != form.Elements[0].Type {
 		t.Error("form element type does not match")
+	}
+
+	// delete the form
+	err = forms.DeleteForm(form.ID, e.DB)
+	if err != nil {
+		t.Error("error deleting form. " + err.Error())
+		return
+	}
+	// validate the form is gone
+	deletedForm, err := forms.GetForm(form.ID, e.DB)
+	if err != nil {
+		if strings.Contains(err.Error(), "no rows in result set") {
+			t.Log("form deleted successfully")
+		} else {
+			t.Error("error getting deleted form. " + err.Error())
+			return
+		}
+	}
+	if deletedForm != nil {
+		t.Error("form still exists")
 	}
 }

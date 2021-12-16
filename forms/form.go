@@ -202,3 +202,19 @@ func UpdateOption(option *Option, db *sql.DB) error {
 	}
 	return nil
 }
+
+func DeleteForm(id int64, db *sql.DB) error {
+	_, err := db.Exec("DELETE FROM forms WHERE id = ?", id)
+	if err != nil {
+		return errors.New("failed to delete form: " + err.Error())
+	}
+	_, err = db.Exec("DELETE FROM elements WHERE formID = ?", id)
+	if err != nil {
+		return errors.New("failed to delete elements: " + err.Error())
+	}
+	_, err = db.Exec("DELETE FROM options WHERE elementID IN (SELECT id FROM elements WHERE formID = ?)", id)
+	if err != nil {
+		return errors.New("failed to delete options: " + err.Error())
+	}
+	return nil
+}
