@@ -20,7 +20,7 @@ func TestGetForm(t *testing.T) {
 		t.Error("error getting form ID. " + err.Error())
 	}
 
-	form, err := forms.GetForm(formID, e.DB)
+	form, err := forms.GetForm(formID, false, e.DB)
 	if err != nil {
 		t.Error("error getting form. " + err.Error())
 	}
@@ -90,7 +90,7 @@ func TestUpdateForm(t *testing.T) {
 		t.Error("error updating form. " + err.Error())
 		return
 	}
-	updatedForm, err := forms.GetForm(form.ID, e.DB)
+	updatedForm, err := forms.GetForm(form.ID, false, e.DB)
 	if err != nil {
 		t.Error("error getting updated form. " + err.Error())
 		return
@@ -121,7 +121,7 @@ func TestUpdateForm(t *testing.T) {
 		return
 	}
 	// validate the form is gone
-	deletedForm, err := forms.GetForm(form.ID, e.DB)
+	deletedForm, err := forms.GetForm(form.ID, false, e.DB)
 	if err != nil {
 		if strings.Contains(err.Error(), "no rows in result set") {
 			t.Log("form deleted successfully")

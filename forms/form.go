@@ -4,6 +4,10 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/http"
+	"strconv"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Form struct {
@@ -55,9 +59,31 @@ func GetForms(db *sql.DB) ([]Form, error) {
 	return forms, nil
 }
 
-func GetForm(id int64, db *sql.DB) (*Form, error) {
+func GetLiveForms(db *sql.DB) ([]*Form, error) {
+	selectForms := "select id, name, required, live from forms where live = true"
+	rows, err := db.Query(selectForms)
+	if err != nil {
+		return nil, errors.New("failed to get forms: " + err.Error())
+	}
+	defer rows.Close()
+	var forms []*Form
+	for rows.Next() {
+		var form Form
+		err := rows.Scan(&form.ID, &form.Name, &form.Required, &form.Live)
+		if err != nil {
+			return nil, errors.New("failed to scan form: " + err.Error())
+		}
+		forms = append(forms, &form)
+	}
+	return forms, nil
+}
+
+func GetForm(id int64, onlyLive bool, db *sql.DB) (*Form, error) {
 	var form Form
 	selectForm := "SELECT id, name, required, live FROM forms WHERE id = ?"
+	if onlyLive {
+		selectForm += " AND live = true"
+	}
 	err := db.QueryRow(selectForm, id).Scan(&form.ID, &form.Name, &form.Required, &form.Live)
 	if err != nil {
 		return nil, errors.New("failed to get form: " + err.Error())
@@ -92,6 +118,24 @@ func GetForm(id int64, db *sql.DB) (*Form, error) {
 	}
 
 	return &form, nil
+}
+
+func GetFormHandler(c *gin.Context, onlyLive bool, db *sql.DB) {
+	id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	form, err := GetForm(id, onlyLive, db)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+		return
+	}
+	c.JSON(http.StatusOK, gin.H{"form": form})
 }
 
 func NewForm(form *Form, db *sql.DB) (*Form, error) {
