@@ -58,14 +58,15 @@ func TestUpdateUser(t *testing.T) {
 
 	// update the user with additional data
 	user := users.User{
-		Email:        userReq.Email,
-		FirstName:    "Test",
-		LastName:     "Provider",
-		Pronouns:     "they/them",
-		PracticeName: "Test Practice",
-		Address:      "123 Test St",
-		Specialty:    "",
-		Phone:        "123-456-7890",
+		Email:             userReq.Email,
+		FirstName:         "Test",
+		LastName:          "Provider",
+		Pronouns:          "they/them",
+		PracticeName:      "Test's Practice",
+		Address:           "123 Test St",
+		Specialty:         "",
+		Phone:             "123-456-7890",
+		AgreementAccepted: true,
 	}
 	user.ID, err = users.UpdateUser(sessToken, &user, e)
 	if err != nil {
