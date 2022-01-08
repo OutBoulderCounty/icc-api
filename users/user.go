@@ -285,3 +285,17 @@ func DeleteUser(stytchUserID *string, e *env.Env) error {
 	}
 	return nil
 }
+
+func UpdateAgreement(id *int64, accepted *bool, e *env.Env) error {
+	if id == nil {
+		return errors.New("user ID is required")
+	}
+	if accepted == nil {
+		return errors.New("accepted is required")
+	}
+	_, err := e.DB.Exec("UPDATE users SET agreementAccepted = ? WHERE id = ?", *accepted, *id)
+	if err != nil {
+		return errors.New("failed to update user agreement in DB: " + err.Error())
+	}
+	return nil
+}

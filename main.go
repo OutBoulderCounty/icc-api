@@ -108,6 +108,26 @@ func setup() *env.Env {
 			"user": user,
 		})
 	})
+	authorizedUser.PUT("/agreement/:bool", func(c *gin.Context) {
+		id := c.GetInt64("user_id")
+		agreement, err := strconv.ParseBool(c.Param("bool"))
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		err = users.UpdateAgreement(&id, &agreement, environment)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"success": true,
+		})
+	})
 
 	adminUsers := environment.Router.Group("/users", adminAuthRequired(environment))
 	adminUsers.GET("", func(c *gin.Context) {
