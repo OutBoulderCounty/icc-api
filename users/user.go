@@ -229,7 +229,7 @@ func UpdateUser(sessionToken string, user *User, e *env.Env) (int64, error) {
 	}
 
 	_, err = e.DB.Exec(
-		"UPDATE users SET email = ?, firstName = ?, lastName = ?, pronouns = ?, practiceName = ?, address = ?, specialty = ?, phone = ?, agreementAccepted = ? WHERE stytchUserID = ?",
+		"UPDATE users SET email = ?, firstName = ?, lastName = ?, pronouns = ?, practiceName = ?, address = ?, specialty = ?, phone = ? WHERE stytchUserID = ?",
 		user.Email,
 		user.FirstName,
 		user.LastName,
@@ -238,7 +238,6 @@ func UpdateUser(sessionToken string, user *User, e *env.Env) (int64, error) {
 		user.Address,
 		user.Specialty,
 		user.Phone,
-		user.AgreementAccepted,
 		user.StytchUserID,
 	)
 	if err != nil {
