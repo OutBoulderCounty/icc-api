@@ -82,6 +82,39 @@ func setup() *env.Env {
 		})
 	})
 
+	environment.Router.GET("/providers", func(c *gin.Context) {
+		providers, err := users.GetApprovedProviders(environment.DB)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"providers": providers,
+		})
+	})
+
+	environment.Router.GET("/provider/:id", func(c *gin.Context) {
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		provider, err := users.GetApprovedProvider(&id, environment.DB)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"provider": provider,
+		})
+	})
+
 	authorizedUser := environment.Router.Group("/user", authRequired(environment))
 	authorizedUser.PUT("", func(c *gin.Context) {
 		users.UpdateUserHandler(c, environment)
