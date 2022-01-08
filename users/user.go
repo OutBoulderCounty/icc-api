@@ -229,7 +229,7 @@ func UpdateUser(sessionToken string, user *User, e *env.Env) (int64, error) {
 	}
 
 	_, err = e.DB.Exec(
-		"UPDATE users SET email = ?, firstName = ?, lastName = ?, pronouns = ?, practiceName = ?, address = ?, specialty = ?, phone = ?, agreementAccepted = ? WHERE stytchUserID = ?",
+		"UPDATE users SET email = ?, firstName = ?, lastName = ?, pronouns = ?, practiceName = ?, address = ?, specialty = ?, phone = ? WHERE stytchUserID = ?",
 		user.Email,
 		user.FirstName,
 		user.LastName,
@@ -238,7 +238,6 @@ func UpdateUser(sessionToken string, user *User, e *env.Env) (int64, error) {
 		user.Address,
 		user.Specialty,
 		user.Phone,
-		user.AgreementAccepted,
 		user.StytchUserID,
 	)
 	if err != nil {
@@ -282,6 +281,20 @@ func DeleteUser(stytchUserID *string, e *env.Env) error {
 	_, err = e.SqlExecute(fmt.Sprintf("DELETE FROM users WHERE stytchUserID = '%s'", *stytchUserID))
 	if err != nil {
 		return errors.New("failed to delete user from DB: " + err.Error())
+	}
+	return nil
+}
+
+func UpdateAgreement(id *int64, accepted *bool, e *env.Env) error {
+	if id == nil {
+		return errors.New("user ID is required")
+	}
+	if accepted == nil {
+		return errors.New("accepted is required")
+	}
+	_, err := e.DB.Exec("UPDATE users SET agreementAccepted = ? WHERE id = ?", *accepted, *id)
+	if err != nil {
+		return errors.New("failed to update user agreement in DB: " + err.Error())
 	}
 	return nil
 }
