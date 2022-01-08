@@ -62,12 +62,4 @@ I use [httpie](https://httpie.io/cli) to make requests in the examples below, bu
 
 ## Available Routes
 
-| Path            | Method | Description                    |
-| --------------- | ------ | ------------------------------ |
-| `/login`        | POST   | Login endpoint                 |
-| `/authenticate` | POST   | Authenticate endpoint          |
-| `/localauth`    | GET    | Local authentication endpoint  |
-| `/forms`        | GET    | Get all forms                  |
-| `/user`         | PUT    | Update user                    |
-| `/user`         | GET    | Get user data by session token |
-| `/response`     | POST   | Submit a form response         |
+[Route documentation is available here](https://inclusivecareco.notion.site/inclusivecareco/API-definition-20d21fddf20b48ff9242f9613928af9f)
