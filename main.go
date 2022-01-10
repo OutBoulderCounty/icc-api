@@ -115,6 +115,44 @@ func setup() *env.Env {
 		})
 	})
 
+	environment.Router.GET("/provider/:id/responses", func(c *gin.Context) {
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		resps, err := responses.GetApprovedResponsesByProvider(id, environment.DB)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"responses": resps,
+		})
+	})
+
+	environment.Router.GET("/provider/:id/responses/all", adminAuthRequired(environment), func(c *gin.Context) {
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		resps, err := responses.GetResponsesByProvider(id, environment.DB)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"responses": resps,
+		})
+	})
+
 	authorizedUser := environment.Router.Group("/user", authRequired(environment))
 	authorizedUser.PUT("", func(c *gin.Context) {
 		users.UpdateUserHandler(c, environment)
@@ -176,8 +214,8 @@ func setup() *env.Env {
 		})
 	})
 
-	authorizedForms := environment.Router.Group("/forms", authRequired(environment))
-	authorizedForms.GET("", func(c *gin.Context) {
+	unauthorizedForms := environment.Router.Group("/forms")
+	unauthorizedForms.GET("", func(c *gin.Context) {
 		foundForms, err := forms.GetLiveForms(environment.DB)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
@@ -189,7 +227,7 @@ func setup() *env.Env {
 			"forms": foundForms,
 		})
 	})
-	authorizedForms.GET("/all", adminAuthRequired(environment), func(c *gin.Context) {
+	unauthorizedForms.GET("/all", adminAuthRequired(environment), func(c *gin.Context) {
 		foundForms, err := forms.GetForms(environment.DB)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{
@@ -201,7 +239,7 @@ func setup() *env.Env {
 			"forms": foundForms,
 		})
 	})
-	authorizedForms.GET("/responses", func(c *gin.Context) {
+	unauthorizedForms.GET("/responses", func(c *gin.Context) {
 		token := c.Request.Header.Get("Authorization")
 		formResps, err := responses.GetFormResponsesByToken(token, environment)
 		if err != nil {
@@ -215,14 +253,14 @@ func setup() *env.Env {
 		})
 	})
 
-	authorizedForm := environment.Router.Group("/form", authRequired(environment))
-	authorizedForm.GET("/:id", func(c *gin.Context) {
+	form := environment.Router.Group("/form")
+	form.GET("/:id", func(c *gin.Context) {
 		forms.GetFormHandler(c, true, environment.DB)
 	})
-	authorizedForm.GET("/any/:id", adminAuthRequired(environment), func(c *gin.Context) {
+	form.GET("/any/:id", adminAuthRequired(environment), func(c *gin.Context) {
 		forms.GetFormHandler(c, false, environment.DB)
 	})
-	authorizedForm.GET("/:id/responses", func(c *gin.Context) {
+	form.GET("/:id/responses", authRequired(environment), func(c *gin.Context) {
 		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -242,7 +280,7 @@ func setup() *env.Env {
 			"responses": resps,
 		})
 	})
-	authorizedForm.GET("/:id/responses/all", adminAuthRequired(environment), func(c *gin.Context) {
+	form.GET("/:id/responses/all", adminAuthRequired(environment), func(c *gin.Context) {
 		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -259,7 +297,7 @@ func setup() *env.Env {
 		}
 		c.JSON(http.StatusOK, gin.H{"responses": resps})
 	})
-	authorizedForm.POST("", adminAuthRequired(environment), func(c *gin.Context) {
+	form.POST("", adminAuthRequired(environment), func(c *gin.Context) {
 		var form forms.Form
 		err := c.ShouldBindJSON(&form)
 		if err != nil {
@@ -279,7 +317,7 @@ func setup() *env.Env {
 			"form": newForm,
 		})
 	})
-	authorizedForm.PUT("", adminAuthRequired(environment), func(c *gin.Context) {
+	form.PUT("", adminAuthRequired(environment), func(c *gin.Context) {
 		var form forms.Form
 		err := c.ShouldBindJSON(&form)
 		if err != nil {
@@ -297,7 +335,7 @@ func setup() *env.Env {
 		}
 		c.Status(http.StatusOK)
 	})
-	authorizedForm.DELETE("/:id", adminAuthRequired(environment), func(c *gin.Context) {
+	form.DELETE("/:id", adminAuthRequired(environment), func(c *gin.Context) {
 		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{

@@ -11,6 +11,7 @@ import (
 
 type Response struct {
 	ID        int64     `json:"id"`
+	FormID    int64     `json:"form_id"`
 	ElementID int64     `json:"element_id"`
 	UserID    int64     `json:"user_id"`
 	Value     string    `json:"value"`
@@ -27,6 +28,7 @@ type sqlResponse struct {
 func (r *sqlResponse) ToResponse() *Response {
 	resp := &Response{
 		ID:        r.ID,
+		FormID:    r.FormID,
 		ElementID: r.ElementID,
 		UserID:    r.UserID,
 		Value:     r.Value.String,
@@ -75,6 +77,10 @@ func NewResponse(elementID int64, userID int64, value string, db *sql.DB) (*Resp
 	if err != nil {
 		return nil, errors.New("error getting last insert id: " + err.Error())
 	}
+	resp.FormID, err = getElementFormID(elementID, db)
+	if err != nil {
+		return nil, errors.New("error getting response form id: " + err.Error())
+	}
 	return resp, nil
 }
 
@@ -121,6 +127,11 @@ func NewResponseWithOptions(elementID int64, userID int64, optionIDs []int64, db
 		}
 	}
 
+	resp.FormID, err = getElementFormID(resp.ElementID, db)
+	if err != nil {
+		return nil, errors.New("error getting response form id: " + err.Error())
+	}
+
 	return resp, nil
 }
 
@@ -134,6 +145,10 @@ func GetResponse(id int64, db *sql.DB) (*Response, error) {
 	resp.OptionIDs, err = getOptionsForResponse(id, db)
 	if err != nil {
 		return nil, errors.New("error getting response options: " + err.Error())
+	}
+	resp.FormID, err = getElementFormID(resp.ElementID, db)
+	if err != nil {
+		return nil, errors.New("error getting response form id: " + err.Error())
 	}
 	return resp.ToResponse(), nil
 }
@@ -156,6 +171,93 @@ func GetResponses(db *sql.DB) ([]*Response, error) {
 		if err != nil {
 			return nil, errors.New("error getting response options: " + err.Error())
 		}
+		resp.FormID, err = getElementFormID(resp.ElementID, db)
+		if err != nil {
+			return nil, errors.New("error getting response form id: " + err.Error())
+		}
+		fmt.Println("Form ID:", resp.FormID)
+		responses = append(responses, resp.ToResponse())
+	}
+	return responses, nil
+}
+
+func GetApprovedResponses(db *sql.DB) ([]*Response, error) {
+	selectResponses := "SELECT id, elementID, userID, value, createdAt, approved FROM responses WHERE approved = true"
+	rows, err := db.Query(selectResponses)
+	if err != nil {
+		return nil, errors.New("error selecting responses: " + err.Error())
+	}
+	defer rows.Close()
+	var responses []*Response
+	for rows.Next() {
+		var resp sqlResponse
+		err := rows.Scan(&resp.ID, &resp.ElementID, &resp.UserID, &resp.Value, &resp.CreatedAt, &resp.Approved)
+		if err != nil {
+			return nil, errors.New("error scanning responses: " + err.Error())
+		}
+		resp.OptionIDs, err = getOptionsForResponse(resp.ID, db)
+		if err != nil {
+			return nil, errors.New("error getting response options: " + err.Error())
+		}
+		resp.FormID, err = getElementFormID(resp.ElementID, db)
+		if err != nil {
+			return nil, errors.New("error getting response form id: " + err.Error())
+		}
+		responses = append(responses, resp.ToResponse())
+	}
+	return responses, nil
+}
+
+func GetApprovedResponsesByProvider(providerID int64, db *sql.DB) ([]*Response, error) {
+	selectResponses := "SELECT id, elementID, userID, value, createdAt, approved FROM responses WHERE approved = true AND userID = ?"
+	rows, err := db.Query(selectResponses, providerID)
+	if err != nil {
+		return nil, errors.New("error selecting responses: " + err.Error())
+	}
+	defer rows.Close()
+	var responses []*Response
+	for rows.Next() {
+		var resp sqlResponse
+		err := rows.Scan(&resp.ID, &resp.ElementID, &resp.UserID, &resp.Value, &resp.CreatedAt, &resp.Approved)
+		if err != nil {
+			return nil, errors.New("error scanning responses: " + err.Error())
+		}
+		resp.OptionIDs, err = getOptionsForResponse(resp.ID, db)
+		if err != nil {
+			return nil, errors.New("error getting response options: " + err.Error())
+		}
+		resp.FormID, err = getElementFormID(resp.ElementID, db)
+		if err != nil {
+			return nil, errors.New("error getting response form id: " + err.Error())
+		}
+		responses = append(responses, resp.ToResponse())
+	}
+	return responses, nil
+}
+
+func GetResponsesByProvider(providerID int64, db *sql.DB) ([]*Response, error) {
+	selectResponses := "SELECT id, elementID, userID, value, createdAt, approved FROM responses WHERE userID = ?"
+	rows, err := db.Query(selectResponses, providerID)
+	if err != nil {
+		return nil, errors.New("error selecting responses: " + err.Error())
+	}
+	defer rows.Close()
+	var responses []*Response
+	for rows.Next() {
+		var resp sqlResponse
+		err := rows.Scan(&resp.ID, &resp.ElementID, &resp.UserID, &resp.Value, &resp.CreatedAt, &resp.Approved)
+		if err != nil {
+			return nil, errors.New("error scanning responses: " + err.Error())
+		}
+		resp.OptionIDs, err = getOptionsForResponse(resp.ID, db)
+		if err != nil {
+			return nil, errors.New("error getting response options: " + err.Error())
+		}
+		resp.FormID, err = getElementFormID(resp.ElementID, db)
+		if err != nil {
+			return nil, errors.New("error getting response form id: " + err.Error())
+		}
+		fmt.Println("Form ID:", resp.FormID)
 		responses = append(responses, resp.ToResponse())
 	}
 	return responses, nil
@@ -178,6 +280,16 @@ func getOptionsForResponse(responseID int64, db *sql.DB) ([]int64, error) {
 		optionIDs = append(optionIDs, optionID)
 	}
 	return optionIDs, nil
+}
+
+func getElementFormID(elementID int64, db *sql.DB) (int64, error) {
+	selectForm := "SELECT formID FROM elements WHERE id = ?"
+	var formID int64
+	err := db.QueryRow(selectForm, elementID).Scan(&formID)
+	if err != nil {
+		return 0, errors.New("error selecting form id: " + err.Error())
+	}
+	return formID, nil
 }
 
 func validateElement(elementID int64, db *sql.DB) error {
@@ -231,6 +343,25 @@ func GetFormResponsesByToken(token string, e *env.Env) ([]*FormResponse, error) 
 	return responses, nil
 }
 
+func GetApprovedFormResponses(db *sql.DB) ([]*FormResponse, error) {
+	selectFormResps := "select f.id, f.name, max(r.createdAt) from forms f, responses r where f.id = (select distinct e.formID from elements e where r.elementID = e.id) and r.approved = true group by f.id"
+	rows, err := db.Query(selectFormResps)
+	if err != nil {
+		return nil, errors.New("error selecting responses: " + err.Error())
+	}
+	defer rows.Close()
+	var responses []*FormResponse
+	for rows.Next() {
+		var resp FormResponse
+		err := rows.Scan(&resp.FormID, &resp.FormName, &resp.LastResponseAt)
+		if err != nil {
+			return nil, errors.New("error scanning form response: " + err.Error())
+		}
+		responses = append(responses, &resp)
+	}
+	return responses, nil
+}
+
 func GetResponsesByForm(formID int64, db *sql.DB) ([]*Response, error) {
 	selectResponses := "SELECT id, elementID, userID, value, createdAt, approved FROM responses WHERE elementID IN (SELECT id FROM elements WHERE formID = ?)"
 	rows, err := db.Query(selectResponses, formID)
@@ -249,6 +380,31 @@ func GetResponsesByForm(formID int64, db *sql.DB) ([]*Response, error) {
 		if err != nil {
 			return nil, errors.New("error getting response options: " + err.Error())
 		}
+		resp.FormID = formID
+		responses = append(responses, resp.ToResponse())
+	}
+	return responses, nil
+}
+
+func GetApprovedResponsesByForm(formID int64, db *sql.DB) ([]*Response, error) {
+	selectResponses := "SELECT id, elementID, userID, value, createdAt, approved FROM responses WHERE approved = true AND elementID IN (SELECT id FROM elements WHERE formID = ?)"
+	rows, err := db.Query(selectResponses, formID)
+	if err != nil {
+		return nil, errors.New("error selecting responses: " + err.Error())
+	}
+	defer rows.Close()
+	var responses []*Response
+	for rows.Next() {
+		var resp sqlResponse
+		err := rows.Scan(&resp.ID, &resp.ElementID, &resp.UserID, &resp.Value, &resp.CreatedAt, &resp.Approved)
+		if err != nil {
+			return nil, errors.New("error scanning responses: " + err.Error())
+		}
+		resp.OptionIDs, err = getOptionsForResponse(resp.ID, db)
+		if err != nil {
+			return nil, errors.New("error getting response options: " + err.Error())
+		}
+		resp.FormID = formID
 		responses = append(responses, resp.ToResponse())
 	}
 	return responses, nil
@@ -276,6 +432,7 @@ func GetResponsesByFormAndToken(formID int64, token string, e *env.Env) ([]*Resp
 		if err != nil {
 			return nil, errors.New("error getting response options: " + err.Error())
 		}
+		resp.FormID = formID
 		responses = append(responses, resp.ToResponse())
 	}
 	return responses, nil
