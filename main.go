@@ -30,6 +30,8 @@ func setup() *env.Env {
 		environment, err = env.Connect(env.EnvTest)
 	case "dev":
 		environment, err = env.Connect(env.EnvDev)
+	case "local":
+		environment, err = env.Connect(env.EnvLocal)
 	default:
 		log.Fatal("Invalid APP_ENV")
 	}

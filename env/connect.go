@@ -36,9 +36,10 @@ type Env struct {
 type envName string
 
 const (
-	EnvDev  envName = "dev"
-	EnvTest envName = "test"
-	EnvProd envName = "prod"
+	EnvDev   envName = "dev"
+	EnvTest  envName = "test"
+	EnvProd  envName = "prod"
+	EnvLocal envName = "local"
 )
 
 func (env Env) SqlExecute(query string) (sql.Result, error) {
@@ -62,8 +63,8 @@ func Connect(name envName) (*Env, error) {
 
 	var db *sql.DB
 	var err error
-	if env.Name == EnvProd {
-		fmt.Println("Connecting to prod database")
+	if env.Name != EnvLocal {
+		fmt.Printf("Connecting to %s database", env.Name)
 
 		// get connection data from SSM
 		sess := session.Must(session.NewSession())
@@ -106,7 +107,6 @@ func Connect(name envName) (*Env, error) {
 		if err != nil {
 			return nil, err
 		}
-
 	}
 	err = db.Ping()
 	if err != nil {
