@@ -31,7 +31,7 @@ type UserRole struct {
 	Active bool  `json:"active"`
 }
 
-func Login(user UserReq, e *env.Env) (stytchUserID *string, err error) {
+func Login(user UserReq, e *env.Env) (*int64, error) {
 	body := stytch.MagicLinksEmailLoginOrCreateParams{
 		Email:              user.Email,
 		LoginMagicLinkURL:  user.RedirectURL,
@@ -49,38 +49,38 @@ func Login(user UserReq, e *env.Env) (stytchUserID *string, err error) {
 		if err == sql.ErrNoRows {
 			result, err := e.SqlExecute(fmt.Sprintf("INSERT INTO users (stytchUserID, email) VALUES ('%s', '%s')", resp.UserID, user.Email))
 			if err != nil {
-				return &resp.UserID, errors.New("Failed to create user: " + err.Error())
+				return nil, errors.New("Failed to create user: " + err.Error())
 			}
 			userID, err = result.LastInsertId()
 			if err != nil {
-				return &resp.UserID, errors.New("Failed to get user ID: " + err.Error())
+				return nil, errors.New("Failed to get user ID: " + err.Error())
 			}
 		} else {
-			return &resp.UserID, errors.New("Failed to query user: " + err.Error())
+			return nil, errors.New("Failed to query user: " + err.Error())
 		}
 	}
 
 	roles, err := user.validateRoles(e.DB)
 	if err != nil {
-		return &resp.UserID, errors.New("Failed to validate roles: " + err.Error())
+		return nil, errors.New("Failed to validate roles: " + err.Error())
 	}
 	for i := 0; i < len(roles); i++ {
 		created, err := roles[i].addUserToRole(e)
 		if err != nil {
-			return &resp.UserID, errors.New("Failed to add user to role: " + err.Error())
+			return nil, errors.New("Failed to add user to role: " + err.Error())
 		}
 		if created {
 			row := e.DB.QueryRow("SELECT name FROM roles WHERE id = ?", roles[i].RoleID)
 			var name string
 			err := row.Scan(&name)
 			if err != nil {
-				return &resp.UserID, errors.New("Failed to query role: " + err.Error())
+				return nil, errors.New("Failed to query role: " + err.Error())
 			}
 			fmt.Printf("Added user %s to role %s\n", user.Email, name)
 			// TODO: send notification to slack or email
 		}
 	}
-	return &resp.UserID, nil
+	return &userID, nil
 }
 
 func LoginHandler(c *gin.Context, e *env.Env) error {
@@ -94,7 +94,7 @@ func LoginHandler(c *gin.Context, e *env.Env) error {
 		return err
 	}
 
-	_, err = Login(user, e)
+	userID, err := Login(user, e)
 	if err != nil {
 		fmt.Println("Failed to login: " + err.Error())
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -102,7 +102,10 @@ func LoginHandler(c *gin.Context, e *env.Env) error {
 		})
 		return err
 	}
-	c.Status(http.StatusOK)
+	c.JSON(http.StatusOK, gin.H{
+		"id":    *userID,
+		"email": user.Email,
+	})
 	return nil
 }
 
