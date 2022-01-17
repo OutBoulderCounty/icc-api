@@ -82,6 +82,21 @@ func setup() *env.Env {
 		})
 	})
 
+	environment.Router.POST("/form/tally", func(c *gin.Context) {
+		req := c.Request
+		err := req.ParseForm()
+		if err != nil {
+			fmt.Println("Failed to parse form: " + err.Error())
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
+		}
+		for key, value := range req.Form {
+			fmt.Println(key, ":", value)
+		}
+	})
+
 	environment.Router.GET("/providers", func(c *gin.Context) {
 		providers, err := users.GetApprovedProviders(environment.DB)
 		if err != nil {
