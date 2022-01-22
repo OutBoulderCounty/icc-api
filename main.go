@@ -11,6 +11,7 @@ import (
 	"api/env"
 	"api/forms"
 	"api/forms/responses"
+	"api/forms/tally"
 	"api/users"
 
 	"github.com/gin-contrib/cors"
@@ -85,18 +86,62 @@ func setup() *env.Env {
 	})
 
 	environment.Router.POST("/form/tally", func(c *gin.Context) {
-		req := c.Request
-		err := req.ParseForm()
+		var event tally.Event
+		err := c.ShouldBindJSON(&event)
 		if err != nil {
-			fmt.Println("Failed to parse form: " + err.Error())
+			fmt.Println("Failed to bind JSON: " + err.Error())
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error": err.Error(),
 			})
 			return
 		}
-		for key, value := range req.Form {
-			fmt.Println(key, ":", value)
+		_, err = event.SaveResponse(environment.DB)
+		if err != nil {
+			fmt.Println("Failed to save response: " + err.Error())
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": err.Error(),
+			})
+			return
 		}
+		c.Status(http.StatusOK)
+	})
+
+	environment.Router.POST("/form/tally/register", func(c *gin.Context) {
+		var event tally.Event
+		err := c.ShouldBindJSON(&event)
+		if err != nil {
+			msg := "Failed to bind JSON: " + err.Error()
+			fmt.Println(msg)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": msg,
+			})
+			return
+		}
+		_, err = event.RegisterForm(environment.DB)
+		if err != nil {
+			msg := "Failed to register form: " + err.Error()
+			fmt.Println(msg)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": msg,
+			})
+			return
+		}
+		c.Status(http.StatusOK)
+	})
+
+	environment.Router.GET("/forms/tally", func(c *gin.Context) {
+		forms, err := tally.GetForms(environment.DB)
+		if err != nil {
+			msg := "Failed to get forms: " + err.Error()
+			fmt.Println(msg)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": msg,
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"forms": forms,
+		})
 	})
 
 	environment.Router.GET("/providers", func(c *gin.Context) {
