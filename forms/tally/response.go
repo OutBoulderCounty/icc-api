@@ -42,10 +42,14 @@ func GetPrettyResponse(id int64, db *sql.DB) (*PrettyResponse, error) {
 	row := db.QueryRow(query, id)
 	var response PrettyResponse
 	var fields []byte
-	err := row.Scan(&response.ID, &response.FormName, &response.CreatedAt, &response.UserFirstName, &response.UserLastName, &response.UserEmail, &fields)
+	var firstName sql.NullString
+	var lastName sql.NullString
+	err := row.Scan(&response.ID, &response.FormName, &response.CreatedAt, &firstName, &lastName, &response.UserEmail, &fields)
 	if err != nil {
 		return nil, errors.New("error getting response from database: " + err.Error())
 	}
+	response.UserFirstName = firstName.String
+	response.UserLastName = lastName.String
 	err = json.Unmarshal(fields, &response.Questions)
 	if err != nil {
 		return nil, errors.New("error unmarshalling fields: " + err.Error())
