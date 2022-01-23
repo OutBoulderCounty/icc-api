@@ -19,17 +19,20 @@ func (e *Event) RegisterForm(db *sql.DB) (*Form, error) {
 		field := fields[i]
 		switch field.Label {
 		case "Name":
-			form.Name = field.Value.String
+			form.Name = field.Value.(string)
 		case "URL":
-			form.URL = field.Value.String
+			form.URL = field.Value.(string)
 		}
 		for j := 0; j < len(field.Options); j++ {
 			option := field.Options[j]
 			if option.Text == "Required" {
-				for k := 0; k < len(field.Value.List); k++ {
-					if field.Value.List[k] == option.ID {
-						form.Required = true
-						break
+				if field.Value != nil {
+					list := field.Value.([]string)
+					for k := 0; k < len(list); k++ {
+						if list[k] == option.ID {
+							form.Required = true
+							break
+						}
 					}
 				}
 			}

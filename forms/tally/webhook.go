@@ -7,8 +7,6 @@ import (
 	"fmt"
 	"strconv"
 	"time"
-
-	"api/users"
 )
 
 type Event struct {
@@ -23,23 +21,26 @@ func (e *Event) SaveResponse(db *sql.DB) (*Response, error) {
 		return nil, errors.New("no fields in event data")
 	}
 	var userID int64
+	var formID int64
 	var err error
 	for i := 0; i < len(fields); i++ {
-		if fields[i].Label == "user_id" {
-			stringID := fields[i].Value.String
-			userID, err = strconv.ParseInt(stringID, 10, 64)
+		field := fields[i]
+		label := field.Label
+		value := field.Value
+		if label == "user_id" {
+			userID, err = strconv.ParseInt(value.(string), 10, 64)
 			if err != nil {
 				return nil, errors.New("error parsing user ID. " + err.Error())
 			}
-			break
+		} else if label == "form_id" {
+			formID, err = strconv.ParseInt(value.(string), 10, 64)
+			if err != nil {
+				return nil, errors.New("error parsing form ID. " + err.Error())
+			}
 		}
 	}
 	if userID == 0 {
 		return nil, errors.New("no user ID in event data")
-	}
-	user, err := users.Get(userID, db)
-	if err != nil {
-		return nil, errors.New("error getting user. " + err.Error())
 	}
 	createdAt, err := time.Parse(time.RFC3339Nano, e.CreatedAt)
 	if err != nil {
@@ -47,11 +48,10 @@ func (e *Event) SaveResponse(db *sql.DB) (*Response, error) {
 	}
 
 	response := Response{
-		FormID:    e.Data.FormID,
-		FormName:  e.Data.FormName,
+		FormID:    formID,
 		EventID:   e.EventID,
 		CreatedAt: createdAt,
-		User:      user,
+		UserID:    userID,
 		Fields:    fields,
 	}
 	err = response.Save(db)
@@ -62,26 +62,25 @@ func (e *Event) SaveResponse(db *sql.DB) (*Response, error) {
 }
 
 type Response struct {
-	ID        int64       `json:"id"`
-	EventID   string      `json:"event_id"`
-	FormID    string      `json:"form_id"`
-	FormName  string      `json:"form_name"`
-	CreatedAt time.Time   `json:"created_at"`
-	User      *users.User `json:"user"`
-	Fields    []Field     `json:"fields"`
+	ID        int64     `json:"id"`
+	EventID   string    `json:"event_id"`
+	FormID    int64     `json:"form_id"`
+	CreatedAt time.Time `json:"created_at"`
+	UserID    int64     `json:"user"`
+	Fields    []Field   `json:"fields"`
 }
 
 func (r *Response) Save(db *sql.DB) error {
 	if r.ID != 0 {
 		return errors.New("response already saved")
 	}
-	query := "insert into tally_responses (event_id, form_id, form_name, created_at, user_id, fields) values (?, ?, ?, ?, ?, ?)"
+	query := "insert into tally_responses (event_id, form_id, created_at, user_id, fields) values (?, ?, ?, ?, ?)"
 	fields, err := json.Marshal(r.Fields)
 	if err != nil {
 		return errors.New("error marshalling fields. " + err.Error())
 	}
 	createdAt := r.CreatedAt.Format("2006-01-02 15:04:05")
-	result, err := db.Exec(query, r.EventID, r.FormID, r.FormName, createdAt, r.User.ID, fields)
+	result, err := db.Exec(query, r.EventID, r.FormID, createdAt, r.UserID, fields)
 	if err != nil {
 		return errors.New("error saving response. " + err.Error())
 	}
@@ -103,11 +102,11 @@ type EventData struct {
 }
 
 type Field struct {
-	Key     string       `json:"key"`
-	Label   string       `json:"label"`
-	Type    string       `json:"type"`
-	Value   ValueWrapper `json:"value"`
-	Options []Option     `json:"options"`
+	Key     string      `json:"key"`
+	Label   string      `json:"label"`
+	Type    string      `json:"type"`
+	Value   interface{} `json:"value"`
+	Options []Option    `json:"options"`
 }
 
 type ValueWrapper struct {

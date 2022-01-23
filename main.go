@@ -85,7 +85,7 @@ func setup() *env.Env {
 		})
 	})
 
-	environment.Router.POST("/form/tally", func(c *gin.Context) {
+	environment.Router.POST("/response/tally", func(c *gin.Context) {
 		var event tally.Event
 		err := c.ShouldBindJSON(&event)
 		if err != nil {
@@ -141,6 +141,30 @@ func setup() *env.Env {
 		}
 		c.JSON(http.StatusOK, gin.H{
 			"forms": forms,
+		})
+	})
+
+	environment.Router.GET("/responses/tally/:id", func(c *gin.Context) {
+		id, err := strconv.ParseInt(c.Param("id"), 10, 64)
+		if err != nil {
+			msg := "Failed to parse int64: " + err.Error()
+			fmt.Println(msg)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": msg,
+			})
+			return
+		}
+		responses, err := tally.GetPrettyResponse(id, environment.DB)
+		if err != nil {
+			msg := "Failed to get responses: " + err.Error()
+			fmt.Println(msg)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": msg,
+			})
+			return
+		}
+		c.JSON(http.StatusOK, gin.H{
+			"responses": responses,
 		})
 	})
 
