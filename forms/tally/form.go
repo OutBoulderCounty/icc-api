@@ -27,7 +27,7 @@ func (e *Event) RegisterForm(db *sql.DB) (*Form, error) {
 			option := field.Options[j]
 			if option.Text == "Required" {
 				if field.Value != nil {
-					list := field.Value.([]string)
+					list := field.Value.([]interface{})
 					for k := 0; k < len(list); k++ {
 						if list[k] == option.ID {
 							form.Required = true
